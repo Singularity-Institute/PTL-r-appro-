@@ -158,3 +158,29 @@ flowchart LR
 Le **knapsack avec contraintes de criticité** sacrifie l'optimalité mathématique au profit de la **robustesse opérationnelle**, garantissant que les éléments les plus importants sont toujours inclus, même au détriment de la valeur totale.
 
 Cette approche est particulièrement adaptée aux contextes où certains éléments sont **indispensables** (systèmes de sécurité, équipements critiques, etc.) et où l'omission d'un élément critique aurait des conséquences plus graves qu'une perte d'efficacité globale.
+
+
+
+flowchart TD
+    A["Matériels à sélectionner"] --> B@{ label: "Type d'algorithme" }
+    B -- Knapsack Classique --> C(["Calcul ratio valeur/poids"])
+    C --> D["Tri par ratio décroissant"]
+    D --> E["Sélection séquentielle"]
+    E --> F["Solution optimale en valeur"]
+    B -- Knapsack Criticité --> G["Classification par grade"]
+    G --> H["Séparation Obligatoires/Optionnels"]
+    H --> I{"Obligatoires faisables?"}
+    I -- Non --> J["Ajustement automatique"]
+    I -- Oui --> K["Inclusion forcée obligatoires"]
+    K --> L["Knapsack classique sur optionnels"]
+    L --> M["Solution respectant criticité"]
+    J --> M
+
+    B@{ shape: diamond}
+     B:::Rose
+     I:::Pine
+    classDef Pine stroke-width:1px, stroke-dasharray:none, stroke:#254336, fill:#27654A, color:#FFFFFF
+    classDef Rose stroke-width:1px, stroke-dasharray:none, stroke:#FF5978, fill:#FFDFE5, color:#8E2236
+
+
+
