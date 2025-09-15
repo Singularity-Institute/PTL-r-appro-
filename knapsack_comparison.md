@@ -13,23 +13,29 @@ Optimise en respectant une **hiérarchie stricte de criticité** avant la valeur
 ## Diagramme de Flux Comparatif
 
 ```mermaid
-graph TD
-    A[Matériels à sélectionner] --> B{Type d'algorithme}
-    
-    B -->|Knapsack Classique| C[Calcul ratio valeur/poids]
-    C --> D[Tri par ratio décroissant]
-    D --> E[Sélection séquentielle]
-    E --> F[Solution optimale en valeur]
-    
-    B -->|Knapsack Criticité| G[Classification par grade]
-    G --> H[Séparation Obligatoires/Optionnels]
-    H --> I{Obligatoires faisables?}
-    I -->|Non| J[Ajustement automatique]
-    I -->|Oui| K[Inclusion forcée obligatoires]
-    K --> L[Knapsack classique sur optionnels]
-    L --> M[Solution respectant criticité]
-    
+flowchart TD
+    A["Matériels à sélectionner"] --> B@{ label: "Type d'algorithme" }
+    B -- Knapsack Classique --> C(["Calcul ratio valeur/poids"])
+    C --> D["Tri par ratio décroissant"]
+    D --> E["Sélection séquentielle"]
+    E --> F["Solution optimale en valeur"]
+    B -- Knapsack Criticité --> G["Classification par grade"]
+    G --> H["Séparation Obligatoires/Optionnels"]
+    H --> I{"Obligatoires faisables?"}
+    I -- Non --> J["Ajustement automatique"]
+    I -- Oui --> K["Inclusion forcée obligatoires"]
+    K --> L["Knapsack classique sur optionnels"]
+    L --> M["Solution respectant criticité"]
     J --> M
+
+    B@{ shape: diamond}
+     B:::Rose
+     I:::Pine
+    classDef Pine stroke-width:1px, stroke-dasharray:none, stroke:#254336, fill:#27654A, color:#FFFFFF
+    classDef Rose stroke-width:1px, stroke-dasharray:none, stroke:#FF5978, fill:#FFDFE5, color:#8E2236
+
+
+
 ```
 
 ---
