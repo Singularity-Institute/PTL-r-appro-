@@ -221,11 +221,7 @@ FIN
 classDiagram
     class Carton {
         +id: String
-        +poids_actuel: Float
-        +volume_actuel: Float
         +articles: Map<Type, Integer>
-        +poids_max: Float = 30.0
-        +volume_max: Float = 50.0
         +contraintes_type: Map<Type, Integer>
         
         +peutAjouter(article, quantite): Boolean
@@ -236,8 +232,6 @@ classDiagram
     }
     
     class EspaceDisponible {
-        +poids_restant: Float
-        +volume_restant: Float
         +capacite_par_type: Map<Type, Integer>
         
         +peutAccueillir(article, quantite): Boolean
@@ -261,16 +255,15 @@ sequenceDiagram
     Carton->>Algo: EspaceDisponible
     
     Algo->>Article: obtenirCaracteristiques()
-    Article->>Algo: {poids, volume, type, quantite}
+    Article->>Algo: {type, quantite}
     
     Algo->>Constraint: peutAjouter(carton, article, quantite)
-    Constraint->>Constraint: Vérifier contraintes type
-    Constraint->>Constraint: Vérifier poids/volume
+    Constraint->>Constraint: Vérifier contraintes type seulement
     Constraint->>Algo: Boolean résultat
     
     alt Si compatible
         Algo->>Carton: ajouterArticle(article, quantite)
-        Carton->>Carton: Mettre à jour poids/volume
+        Carton->>Carton: Mettre à jour compteurs types
         Carton->>Algo: Confirmation ajout
     else Si incompatible
         Algo->>Algo: Chercher carton alternatif
@@ -317,7 +310,7 @@ Score_Priorité = α × Ratio_Stock + β × Tendance_Usage + γ × Densité_Vale
 Où:
 - Ratio_Stock = (Stock_Min + Stock_Max)/2 - Stock_Actuel) / Stock_Max
 - Tendance_Usage = Usage_Récent / Usage_Moyen_Historique  
-- Densité_Valeur = Valeur_Unitaire / (Poids_Unitaire + Volume_Unitaire)
+- Densité_Valeur = Valeur_Unitaire / Quantité_Unitaire
 - Criticité_Métier ∈ {0.2, 0.5, 0.8, 1.0} selon impact métier
 
 Coefficients suggérés: α=0.4, β=0.3, γ=0.2, δ=0.1
@@ -342,32 +335,22 @@ sequenceDiagram
     Engine->>Sorter: Trier par criticité
     Sorter->>Engine: Articles triés par niveau
     
-    Note over Engine,Packer: Phase 1 - Critiques A/B
-    Engine->>Packer: Traiter articles critiques
+    Note over Engine,Packer: Phase 1 - Critiques A/B + Urgents A
+    Engine->>Packer: Traiter articles prioritaires
     Packer->>Packer: Créer cartons dédiés obligatoires
-    Packer->>Engine: Cartons critiques créés
+    Packer->>Engine: Cartons prioritaires créés
     
-    Note over Engine,Packer: Phase 2 - Urgents A  
-    Engine->>Packer: Traiter urgents A
-    Packer->>Packer: Créer cartons dédiés obligatoires
-    Packer->>Engine: Cartons urgents A créés
-    
-    Note over Engine,Packer: Phase 3 - Urgents B
-    Engine->>Packer: Traiter urgents B
+    Note over Engine,Packer: Phase 2 - Urgents B + SAFE
+    Engine->>Packer: Traiter articles secondaires
     Packer->>Packer: Compléter cartons existants
     alt Si cartons pleins
-        Packer->>Packer: Créer nouveaux cartons urgents B
+        Packer->>Packer: Créer nouveaux cartons
     end
-    Packer->>Engine: Urgents B traités
+    Packer->>Engine: Articles secondaires traités
     
-    Note over Engine,Packer: Phase 4 - Articles SAFE
-    Engine->>Packer: Compléter avec SAFE
-    Packer->>Packer: Remplissage opportuniste
-    Packer->>Engine: Cartons complétés
-    
-    Note over Engine,Packer: Phase 5 - Optimisation
-    Engine->>Engine: Cas spécial Urgents B seuls?
-    alt Si uniquement Urgents B
+    Note over Engine,Packer: Phase 3 - Optimisation
+    Engine->>Engine: Cas spécial Urgents B + SAFE seuls?
+    alt Si uniquement Urgents B + SAFE
         Engine->>Packer: Compléter par priorisation
         Packer->>Packer: Ajouter articles prioritaires
     end
@@ -399,7 +382,7 @@ flowchart TD
     ADD_EXISTING --> OPTIMIZE[🎯 Compléter par<br/>Petits Articles]
     NEW_CARTON --> OPTIMIZE
     
-    OPTIMIZE --> VALIDATE[✅ Validation Finale<br/>Poids/Volume]
+    OPTIMIZE --> VALIDATE[✅ Validation Finale<br/>Contraintes Types]
     
     style BIG_ITEM fill:#ffab91
     style NEW_CARTON fill:#fff3e0
@@ -473,23 +456,24 @@ DÉBUT
     articles_critiques_traités ← CompterArticlesCritiques(cartons_generes)
     pourcentage_critiques ← articles_critiques_traités / total_critiques × 100
     
-    // Optimisation espace
-    volume_utilise ← SommeVolumes(cartons_generes)
-    volume_optimal_theorique ← VolumeMinimalTheorique(articles_origine)
-    efficacite_volumique ← volume_optimal_theorique / volume_utilise × 100
+    // Optimisation nombre d'articles
+    articles_utilises ← SommeArticles(cartons_generes)
+    articles_optimal_theorique ← ArticlesMinimalTheorique(articles_origine)
+    efficacite_articles ← articles_optimal_theorique / articles_utilises × 100
     
     // Score global
     score_performance ← 
         pourcentage_critiques × 0.4 +
         taux_remplissage_moyen × 0.3 +
-        efficacite_volumique × 0.2 +
+        efficacite_articles × 0.2 +
         (100 - nb_cartons_surplus) × 0.1
     
     RETOURNER {
         score: score_performance,
         nb_cartons: nb_cartons,
         taux_remplissage: taux_remplissage_moyen,
-        critiques_ok: pourcentage_critiques
+        critiques_ok: pourcentage_critiques,
+        efficacite_articles: efficacite_articles
     }
 FIN
 ```
@@ -504,16 +488,14 @@ FIN
 {
   "knapsack_config": {
     "contraintes_globales": {
-      "poids_max_carton_kg": 30.0,
-      "volume_max_carton_litres": 50.0,
-      "tolerance_depassement": 0.05
+      "pas_limite_poids_volume": true
     },
     "contraintes_par_type": {
-      "centrales": {"max_par_carton": 10, "poids_unitaire": 2.5},
-      "claviers": {"max_par_carton": 15, "poids_unitaire": 0.8},
-      "detecteurs": {"max_par_carton": 50, "poids_unitaire": 0.2},
-      "cameras": {"max_par_carton": 8, "poids_unitaire": 3.0},
-      "cables": {"max_par_carton": 100, "poids_unitaire": 0.1}
+      "centrales": {"max_par_carton": 10},
+      "claviers": {"max_par_carton": 15},
+      "detecteurs": {"max_par_carton": 50},
+      "cameras": {"max_par_carton": 8},
+      "cables": {"max_par_carton": 100}
     },
     "priorites_completion": {
       "coefficient_ratio_stock": 0.4,
@@ -542,22 +524,9 @@ FONCTION CalculerCartonsNecessaires(article)
 DÉBUT
     quantite_totale ← article.quantite_besoin
     max_par_carton ← article.type.max_par_carton
-    poids_unitaire ← article.type.poids_unitaire
-    volume_unitaire ← article.type.volume_unitaire
     
-    // Contrainte par nombre d'articles
-    cartons_par_nombre ← PLAFOND(quantite_totale / max_par_carton)
-    
-    // Contrainte par poids
-    poids_total ← quantite_totale × poids_unitaire
-    cartons_par_poids ← PLAFOND(poids_total / POIDS_MAX_CARTON)
-    
-    // Contrainte par volume
-    volume_total ← quantite_totale × volume_unitaire
-    cartons_par_volume ← PLAFOND(volume_total / VOLUME_MAX_CARTON)
-    
-    // Prendre le maximum (contrainte la plus restrictive)
-    cartons_necessaires ← MAX(cartons_par_nombre, cartons_par_poids, cartons_par_volume)
+    // Contrainte par nombre d'articles seulement
+    cartons_necessaires ← PLAFOND(quantite_totale / max_par_carton)
     
     RETOURNER cartons_necessaires
 FIN
@@ -656,36 +625,36 @@ FIN
 
 ```
 DONNÉES ENTRÉE:
-- 5 Centrales CRITIQUES A (2.5kg chacune)
-- 20 Détecteurs URGENTS B (0.2kg chacun)  
-- 3 Caméras SAFE (3kg chacune)
+- 5 Centrales CRITIQUES A
+- 20 Détecteurs URGENTS B 
+- 3 Caméras SAFE
 
 EXÉCUTION:
-Phase 1: Centrales → 1 carton dédié (5 × 2.5kg = 12.5kg)
-Phase 3: Détecteurs → Compléter carton centrales (20 × 0.2kg = 4kg)
-Phase 4: Caméras → Compléter si possible (3 × 3kg = 9kg)
+Phase 1: Centrales → 1 carton dédié (5 centrales max 10/carton)
+Phase 2: Détecteurs → Compléter carton centrales (20 détecteurs max 50/carton)
+Phase 2: Caméras → Compléter si possible (3 caméras max 8/carton)
 
 RÉSULTAT:
-Carton 1: 5 centrales + 20 détecteurs + 3 caméras = 25.5kg ✅
+Carton 1: 5 centrales + 20 détecteurs + 3 caméras ✅
 ```
 
 ### **Exemple 2: Uniquement Urgents B**
 
 ```
 DONNÉES ENTRÉE:
-- 30 Claviers URGENTS B (0.8kg chacun)
+- 30 Claviers URGENTS B
 
 EXÉCUTION:
-Phase 3: Créer cartons urgents B → 2 cartons (15 claviers/carton max)
-Phase 5: Compléter par articles prioritaires
+Phase 2: Créer cartons urgents B → 2 cartons (15 claviers/carton max)
+Phase 3: Compléter par articles prioritaires
 
 Articles complémentaires identifiés:
 - Câbles RJ45: stock=10, optimal=25 → +15 câbles
 - Détecteurs: stock=30, optimal=45 → +15 détecteurs
 
 RÉSULTAT:
-Carton 1: 15 claviers + 50 câbles + 15 détecteurs = 18.5kg ✅
-Carton 2: 15 claviers + compléments = 16.2kg ✅
+Carton 1: 15 claviers + 50 câbles + 15 détecteurs ✅
+Carton 2: 15 claviers + compléments ✅
 ```
 
 ---
