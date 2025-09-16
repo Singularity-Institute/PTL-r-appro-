@@ -38,44 +38,52 @@ graph TD
 ### **Catégories de Criticité**
 ```mermaid
 graph TB
-    subgraph "Hiérarchie de Criticité"
-        CRIT_A[🔴 CRITIQUES A<br/>Arrêt service immédiat]
-        CRIT_B[🔴 CRITIQUES B<br/>Arrêt service < 24h]
-        URG_A[🟠 URGENTS A<br/>Impact service < 48h]
+    subgraph "Hiérarchie de Criticité - Articles OBLIGATOIRES"
+        CRIT_A[🔴 CRITIQUES A<br/>Arrêt service immédiat<br/>⚡ OBLIGATOIRE]
+        CRIT_B[🔴 CRITIQUES B<br/>Arrêt service < 24h<br/>⚡ OBLIGATOIRE]
+        URG_A[🟠 URGENTS A<br/>Impact service < 48h<br/>⚡ OBLIGATOIRE]
+    end
+
+    subgraph "Articles Complémentaires"
         URG_B[🟡 URGENTS B<br/>Impact service < 7j]
         SAFE[🟢 SAFE<br/>Stock préventif]
     end
-    
-    subgraph "Contraintes Cartons"
-        CONSTRAINT[📦 Contraintes par Type<br/>Type 1: max X articles<br/>Type 2: max Y articles<br/>Type 3: max Z articles<br/>Poids max: 30kg<br/>Volume max: 50L]
+
+    subgraph "Contraintes Cartons UNIQUEMENT"
+        CONSTRAINT[📦 Contraintes UNIQUEMENT par Type<br/>Type 1: max X articles<br/>Type 2: max Y articles<br/>Type 3: max Z articles<br/>❌ AUCUNE contrainte poids/volume]
     end
-    
+
     CRIT_A --> CONSTRAINT
     CRIT_B --> CONSTRAINT
     URG_A --> CONSTRAINT
     URG_B --> CONSTRAINT
     SAFE --> CONSTRAINT
-    
-    style CRIT_A fill:#ffcdd2
-    style CRIT_B fill:#ffcdd2
-    style URG_A fill:#ffab91
+
+    style CRIT_A fill:#ffcdd2,stroke:#d32f2f,stroke-width:3px
+    style CRIT_B fill:#ffcdd2,stroke:#d32f2f,stroke-width:3px
+    style URG_A fill:#ffab91,stroke:#f57c00,stroke-width:3px
     style URG_B fill:#fff3e0
     style SAFE fill:#c8e6c9
 ```
 
-### **Contraintes Physiques par Type d'Article**
+### **Contraintes Simplifiées par Type d'Article**
 ```json
 {
-  "contraintes_carton": {
-    "type_1_centrales": {"max_articles": 10, "poids_unitaire": 2.5, "volume_unitaire": 0.5},
-    "type_2_claviers": {"max_articles": 15, "poids_unitaire": 0.8, "volume_unitaire": 0.3},
-    "type_3_detecteurs": {"max_articles": 50, "poids_unitaire": 0.2, "volume_unitaire": 0.1},
-    "type_4_cameras": {"max_articles": 8, "poids_unitaire": 3.0, "volume_unitaire": 0.8},
-    "type_5_cables": {"max_articles": 100, "poids_unitaire": 0.1, "volume_unitaire": 0.05}
+  "contraintes_carton_uniquement": {
+    "type_1": {"max_articles": "X"},
+    "type_2": {"max_articles": "Y"},
+    "type_3": {"max_articles": "Z"}
   },
-  "limites_globales": {
-    "poids_max_kg": 30.0,
-    "volume_max_litres": 50.0
+  "contraintes_supprimees": {
+    "poids_max_kg": "❌ SUPPRIMÉ - Pas de contrainte poids",
+    "volume_max_litres": "❌ SUPPRIMÉ - Pas de contrainte volume",
+    "poids_unitaire": "❌ SUPPRIMÉ - Non pertinent",
+    "volume_unitaire": "❌ SUPPRIMÉ - Non pertinent"
+  },
+  "principe_colis": {
+    "composition": "Un colis peut contenir UN OU PLUSIEURS cartons",
+    "contrainte_unique": "Seules les contraintes par TYPE sont appliquées par carton",
+    "flexibilite": "L'algorithme détermine la répartition optimale cartons/colis"
   }
 }
 ```
@@ -91,24 +99,18 @@ flowchart TD
     START[🚀 Début Algorithme] --> COLLECT[📊 Collecte Articles<br/>avec Criticité et Besoins]
     
     COLLECT --> SORT_CRIT[🔄 Tri par Criticité<br/>CRIT_A → CRIT_B → URG_A → URG_B → SAFE]
+
+    SORT_CRIT --> PHASE1[📦 PHASE 1: Critiques A/B + Urgents A<br/>⚡ TRAITEMENT OBLIGATOIRE<br/>Créer cartons/colis nécessaires]
+
+    PHASE1 --> PHASE2[📦 PHASE 2: Urgents B<br/>Compléter cartons existants si possible]
+
+    PHASE2 --> PHASE3[📦 PHASE 3: Articles SAFE<br/>Compléter espace restant]
     
-    SORT_CRIT --> PHASE1[📦 PHASE 1: Critiques A/B<br/>Créer cartons dédiés]
-    
-    PHASE1 --> PHASE2[📦 PHASE 2: Urgents A<br/>Créer cartons dédiés]
-    
-    PHASE2 --> PHASE3[📦 PHASE 3: Urgents B<br/>Compléter cartons existants]
-    
-    PHASE3 --> CHECK_ONLY_URG_B{🤔 Seulement<br/>Urgents B ?}
-    
-    CHECK_ONLY_URG_B -->|OUI| COMPLETE_URG_B[📦 Compléter cartons<br/>par articles prioritaires]
-    CHECK_ONLY_URG_B -->|NON| PHASE4[📦 PHASE 4: Articles SAFE<br/>Compléter espace restant]
-    
-    COMPLETE_URG_B --> PHASE5[📦 PHASE 5: Optimisation finale]
-    PHASE4 --> PHASE5
-    
-    PHASE5 --> VALIDATE[✅ Validation Contraintes<br/>Poids/Volume/Nombre]
-    
-    VALIDATE --> OUTPUT[📋 Cartons Optimisés<br/>avec Composition Détaillée]
+    PHASE3 --> PHASE4[📦 PHASE 4: Optimisation finale<br/>Répartition cartons → colis]
+
+    PHASE4 --> VALIDATE[✅ Validation Contraintes<br/>UNIQUEMENT par Type d'articles]
+
+    VALIDATE --> OUTPUT[📋 Colis Optimisés<br/>avec Cartons et Composition Détaillée]
     
     style PHASE1 fill:#ffcdd2
     style PHASE2 fill:#ffab91
@@ -123,91 +125,80 @@ flowchart TD
 ALGORITHME KnapsackModifieParCriticite(liste_articles)
 DÉBUT
     cartons ← []
+    colis ← []
     articles_traités ← []
-    
-    // === PHASE 1: CRITIQUES A/B - TRAITEMENT OBLIGATOIRE ===
-    articles_critiques ← FiltrerParCriticite(liste_articles, ["CRIT_A", "CRIT_B"])
-    
-    POUR CHAQUE article DANS articles_critiques FAIRE
-        cartons_necessaires ← CalculerCartonsNecessaires(article)
-        POUR i ← 1 A cartons_necessaires FAIRE
+
+    // === PHASE 1: ARTICLES OBLIGATOIRES (CRIT_A + CRIT_B + URG_A) ===
+    articles_obligatoires ← FiltrerParCriticite(liste_articles, ["CRIT_A", "CRIT_B", "URG_A"])
+
+    POUR CHAQUE article DANS articles_obligatoires FAIRE
+        quantite_restante ← article.quantite_besoin
+
+        TANT QUE quantite_restante > 0 FAIRE
             carton ← NouveauCarton()
-            RemplirCartonMaximal(carton, article)
+            quantite_ajoutee ← RemplirCartonParType(carton, article, quantite_restante)
             cartons.ajouter(carton)
-        FIN POUR
+            quantite_restante ← quantite_restante - quantite_ajoutee
+        FIN TANT QUE
+
         articles_traités.ajouter(article)
     FIN POUR
-    
-    // === PHASE 2: URGENTS A - TRAITEMENT OBLIGATOIRE ===
-    articles_urgents_a ← FiltrerParCriticite(liste_articles, ["URG_A"])
-    SOUSTRACTION(articles_urgents_a, articles_traités)
-    
-    POUR CHAQUE article DANS articles_urgents_a FAIRE
-        cartons_necessaires ← CalculerCartonsNecessaires(article)
-        POUR i ← 1 A cartons_necessaires FAIRE
-            carton ← NouveauCarton()
-            RemplirCartonMaximal(carton, article)
-            cartons.ajouter(carton)
-        FIN POUR
-        articles_traités.ajouter(article)
-    FIN POUR
-    
-    // === PHASE 3: URGENTS B - COMPLÉTER CARTONS EXISTANTS ===
-    articles_urgents_b ← FiltrerParCriticite(liste_articles, ["URG_B"])
-    SOUSTRACTION(articles_urgents_b, articles_traités)
-    
-    SI articles_urgents_b.non_vide ALORS
-        // Essayer de compléter les cartons existants
-        POUR CHAQUE article DANS articles_urgents_b FAIRE
-            carton_compatible ← TrouverCartonCompatible(cartons, article)
-            SI carton_compatible ≠ null ALORS
-                AjouterAuCarton(carton_compatible, article)
-                articles_traités.ajouter(article)
+
+    // === PHASE 2: URGENTS B - COMPLÉTER CARTONS EXISTANTS SI POSSIBLE ===
+    POUR CHAQUE article DANS articles_urgents_b FAIRE
+        quantite_restante ← article.quantite_besoin
+
+        // Essayer de compléter cartons existants
+        POUR CHAQUE carton DANS cartons FAIRE
+            SI carton.PeutAjouterType(article.type) ALORS
+                quantite_possible ← carton.CalculerQuantiteMaxPossible(article)
+                SI quantite_possible > 0 ALORS
+                    quantite_ajoutee ← MIN(quantite_restante, quantite_possible)
+                    carton.AjouterArticle(article, quantite_ajoutee)
+                    quantite_restante ← quantite_restante - quantite_ajoutee
+                FIN SI
+            FIN SI
+
+            SI quantite_restante = 0 ALORS
+                SORTIR
             FIN SI
         FIN POUR
-        
-        // Créer nouveaux cartons pour articles restants si nécessaire
-        articles_urgents_b_restants ← SOUSTRACTION(articles_urgents_b, articles_traités)
-        SI articles_urgents_b_restants.non_vide ALORS
-            POUR CHAQUE article DANS articles_urgents_b_restants FAIRE
-                carton ← TrouverOuCreerCarton(cartons, article)
-                AjouterAuCarton(carton, article)
-                articles_traités.ajouter(article)
-            FIN POUR
-        FIN SI
-    FIN SI
-    
-    // === PHASE 4: ARTICLES SAFE - REMPLISSAGE OPPORTUNISTE ===
+
+        // Créer nouveaux cartons pour quantité restante
+        TANT QUE quantite_restante > 0 FAIRE
+            carton ← NouveauCarton()
+            quantite_ajoutee ← RemplirCartonParType(carton, article, quantite_restante)
+            cartons.ajouter(carton)
+            quantite_restante ← quantite_restante - quantite_ajoutee
+        FIN TANT QUE
+
+        articles_traités.ajouter(article)
+    FIN POUR
+
+    // === PHASE 3: ARTICLES SAFE - REMPLISSAGE OPPORTUNISTE ===
     articles_safe ← FiltrerParCriticite(liste_articles, ["SAFE"])
     SOUSTRACTION(articles_safe, articles_traités)
-    
+
     POUR CHAQUE carton DANS cartons FAIRE
-        TANT QUE carton.a_espace_disponible FAIRE
-            article_optimal ← ChoisirMeilleurArticle(articles_safe, carton)
-            SI article_optimal ≠ null ALORS
-                AjouterAuCarton(carton, article_optimal)
-                articles_safe.retirer(article_optimal)
-            SINON
-                SORTIR // Plus d'articles compatibles
+        POUR CHAQUE article DANS articles_safe FAIRE
+            SI carton.PeutAjouterType(article.type) ALORS
+                quantite_possible ← carton.CalculerQuantiteMaxPossible(article)
+                SI quantite_possible > 0 ALORS
+                    carton.AjouterArticle(article, quantite_possible)
+                FIN SI
             FIN SI
-        FIN TANT QUE
-    FIN POUR
-    
-    // === PHASE 5: OPTIMISATION FINALE ===
-    // Cas spécial: Si seuls des Urgents B, compléter par articles prioritaires
-    SI SeulementUrgentsB(liste_articles) ALORS
-        articles_complementaires ← IdentifierArticlesComplementaires()
-        POUR CHAQUE carton DANS cartons FAIRE
-            CompleterParPriorisation(carton, articles_complementaires)
         FIN POUR
-    FIN SI
-    
-    // Validation finale
-    POUR CHAQUE carton DANS cartons FAIRE
-        ValiderContraintes(carton)
     FIN POUR
-    
-    RETOURNER cartons
+
+    // === PHASE 4: OPTIMISATION COLIS ===
+    colis ← OptimiserRepartitionCartonsEnColis(cartons)
+
+    // Validation finale contraintes par type uniquement
+    POUR CHAQUE carton DANS cartons FAIRE
+        ValiderContraintesParType(carton)
+    FIN POUR
+
+    RETOURNER colis
 FIN
 ```
 
@@ -215,29 +206,38 @@ FIN
 
 ## 📦 **Gestion des Cartons et Contraintes**
 
-### **Structure d'un Carton**
+### **Structure d'un Carton et Colis**
 
 ```mermaid
 classDiagram
+    class Colis {
+        +id: String
+        +cartons: List<Carton>
+
+        +ajouterCarton(carton): void
+        +obtenirTotalArticles(): Map<Type, Integer>
+        +calculerNombreCartons(): Integer
+    }
+
     class Carton {
         +id: String
         +articles: Map<Type, Integer>
         +contraintes_type: Map<Type, Integer>
-        
-        +peutAjouter(article, quantite): Boolean
-        +ajouterArticle(article, quantite): void
-        +calculerEspaceRestant(): EspaceDisponible
-        +obtenirTauxRemplissage(): Float
-        +validerContraintes(): Boolean
+
+        +PeutAjouterType(type): Boolean
+        +CalculerQuantiteMaxPossible(article): Integer
+        +AjouterArticle(article, quantite): void
+        +ValiderContraintesParType(): Boolean
     }
-    
-    class EspaceDisponible {
-        +capacite_par_type: Map<Type, Integer>
-        
-        +peutAccueillir(article, quantite): Boolean
+
+    class Article {
+        +type: TypeArticle
+        +quantite_besoin: Integer
+        +criticite: Criticite
     }
-    
-    Carton --> EspaceDisponible
+
+    Colis --> Carton
+    Carton --> Article
 ```
 
 ### **Algorithme de Remplissage Optimal**
@@ -257,19 +257,21 @@ sequenceDiagram
     Algo->>Article: obtenirCaracteristiques()
     Article->>Algo: {type, quantite}
     
-    Algo->>Constraint: peutAjouter(carton, article, quantite)
-    Constraint->>Constraint: Vérifier contraintes type seulement
+    Algo->>Constraint: PeutAjouterType(carton, article.type)
+    Constraint->>Constraint: Vérifier UNIQUEMENT contrainte nombre par type
     Constraint->>Algo: Boolean résultat
-    
-    alt Si compatible
-        Algo->>Carton: ajouterArticle(article, quantite)
-        Carton->>Carton: Mettre à jour compteurs types
+
+    alt Si type compatible
+        Algo->>Carton: CalculerQuantiteMaxPossible(article)
+        Carton->>Algo: quantite_max_possible
+        Algo->>Carton: AjouterArticle(article, quantite)
+        Carton->>Carton: Mettre à jour compteurs types uniquement
         Carton->>Algo: Confirmation ajout
-    else Si incompatible
+    else Si type incompatible ou plein
         Algo->>Algo: Chercher carton alternatif
         alt Si aucun carton compatible
             Algo->>Carton: NouveauCarton()
-            Algo->>Carton: ajouterArticle(article, quantite)
+            Algo->>Carton: AjouterArticle(article, quantite)
         end
     end
 ```
@@ -487,15 +489,19 @@ FIN
 ```json
 {
   "knapsack_config": {
-    "contraintes_globales": {
-      "pas_limite_poids_volume": true
+    "articles_obligatoires": {
+      "critiques_A": "⚡ OBLIGATOIRE - Intégration totale garantie",
+      "critiques_B": "⚡ OBLIGATOIRE - Intégration totale garantie",
+      "urgents_A": "⚡ OBLIGATOIRE - Intégration totale garantie"
     },
-    "contraintes_par_type": {
-      "centrales": {"max_par_carton": 10},
-      "claviers": {"max_par_carton": 15},
-      "detecteurs": {"max_par_carton": 50},
-      "cameras": {"max_par_carton": 8},
-      "cables": {"max_par_carton": 100}
+    "contraintes_uniques": {
+      "type_1": {"max_par_carton": "X"},
+      "type_2": {"max_par_carton": "Y"},
+      "type_3": {"max_par_carton": "Z"}
+    },
+    "contraintes_supprimees": {
+      "poids": "❌ SUPPRIMÉ",
+      "volume": "❌ SUPPRIMÉ"
     },
     "priorites_completion": {
       "coefficient_ratio_stock": 0.4,
@@ -517,42 +523,50 @@ FIN
 
 ## 🚀 **Algorithmes Détaillés de Support**
 
-### **Fonction: Calculer Cartons Nécessaires**
+### **Fonction: Remplir Carton Par Type**
 
 ```
-FONCTION CalculerCartonsNecessaires(article)
+FONCTION RemplirCartonParType(carton, article, quantite_demandee)
 DÉBUT
-    quantite_totale ← article.quantite_besoin
     max_par_carton ← article.type.max_par_carton
-    
-    // Contrainte par nombre d'articles seulement
-    cartons_necessaires ← PLAFOND(quantite_totale / max_par_carton)
-    
-    RETOURNER cartons_necessaires
+    quantite_actuelle_dans_carton ← carton.articles[article.type]
+
+    // Contrainte UNIQUEMENT par nombre d'articles par type
+    quantite_possible ← max_par_carton - quantite_actuelle_dans_carton
+    quantite_ajoutee ← MIN(quantite_demandee, quantite_possible)
+
+    carton.AjouterArticle(article, quantite_ajoutee)
+
+    RETOURNER quantite_ajoutee
 FIN
 ```
 
-### **Fonction: Trouver Carton Compatible**
+### **Fonction: Optimiser Répartition Cartons en Colis**
 
 ```
-FONCTION TrouverCartonCompatible(cartons_existants, article)
+FONCTION OptimiserRepartitionCartonsEnColis(cartons)
 DÉBUT
-    meilleur_carton ← null
-    meilleur_score_remplissage ← 0
-    
-    POUR CHAQUE carton DANS cartons_existants FAIRE
-        SI carton.peutAjouter(article) ALORS
-            score_remplissage ← carton.calculerTauxRemplissageApresAjout(article)
-            
-            // Privilégier les cartons avec meilleur taux de remplissage
-            SI score_remplissage > meilleur_score_remplissage ALORS
-                meilleur_carton ← carton
-                meilleur_score_remplissage ← score_remplissage
-            FIN SI
+    colis_liste ← []
+    colis_actuel ← NouveauColis()
+
+    // Stratégie simple : grouper les cartons logiquement
+    POUR CHAQUE carton DANS cartons FAIRE
+        colis_actuel.ajouterCarton(carton)
+
+        // Possibilité d'optimisation: créer nouveau colis selon critères métier
+        // (ex: seuil nombre cartons, logique géographique, urgence, etc.)
+        SI CritereDivisionColis(colis_actuel) ALORS
+            colis_liste.ajouter(colis_actuel)
+            colis_actuel ← NouveauColis()
         FIN SI
     FIN POUR
-    
-    RETOURNER meilleur_carton
+
+    // Ajouter le dernier colis s'il contient des cartons
+    SI colis_actuel.cartons.taille > 0 ALORS
+        colis_liste.ajouter(colis_actuel)
+    FIN SI
+
+    RETOURNER colis_liste
 FIN
 ```
 
@@ -621,40 +635,47 @@ FIN
 
 ## 🎪 **Exemples d'Exécution**
 
-### **Exemple 1: Articles Mixtes**
+### **Exemple 1: Articles Obligatoires + Complémentaires**
 
 ```
 DONNÉES ENTRÉE:
-- 5 Centrales CRITIQUES A
-- 20 Détecteurs URGENTS B 
-- 3 Caméras SAFE
+- 5 Centrales CRITIQUES A (Type 1, max 10/carton) ⚡ OBLIGATOIRE
+- 3 Caméras URGENTS A (Type 2, max 8/carton) ⚡ OBLIGATOIRE
+- 20 Détecteurs URGENTS B (Type 3, max 50/carton)
+- 100 Câbles SAFE (Type 3, max 50/carton)
 
 EXÉCUTION:
-Phase 1: Centrales → 1 carton dédié (5 centrales max 10/carton)
-Phase 2: Détecteurs → Compléter carton centrales (20 détecteurs max 50/carton)
-Phase 2: Caméras → Compléter si possible (3 caméras max 8/carton)
+Phase 1 (Obligatoire):
+- Carton 1: 5 centrales + 3 caméras
+Phase 2 (Urgents B):
+- Carton 1: compléter avec 20 détecteurs
+Phase 3 (SAFE):
+- Carton 1: compléter avec 27 câbles (50-20-3=27 restants pour Type 3)
+- Carton 2: 50 câbles
+- Carton 3: 23 câbles restants
 
-RÉSULTAT:
-Carton 1: 5 centrales + 20 détecteurs + 3 caméras ✅
+RÉSULTAT COLIS:
+Colis 1: [Carton 1: 5 centrales + 3 caméras + 20 détecteurs + 27 câbles,
+          Carton 2: 50 câbles,
+          Carton 3: 23 câbles] ✅
 ```
 
-### **Exemple 2: Uniquement Urgents B**
+### **Exemple 2: Articles Critiques Volumineux**
 
 ```
 DONNÉES ENTRÉE:
-- 30 Claviers URGENTS B
+- 25 Articles CRITIQUES B Type 1 (max 10/carton) ⚡ OBLIGATOIRE
 
 EXÉCUTION:
-Phase 2: Créer cartons urgents B → 2 cartons (15 claviers/carton max)
-Phase 3: Compléter par articles prioritaires
+Phase 1 (Obligatoire):
+- Carton 1: 10 articles Type 1
+- Carton 2: 10 articles Type 1
+- Carton 3: 5 articles Type 1
+Phase 3 (SAFE): Compléter cartons avec autres types si disponibles
 
-Articles complémentaires identifiés:
-- Câbles RJ45: stock=10, optimal=25 → +15 câbles
-- Détecteurs: stock=30, optimal=45 → +15 détecteurs
-
-RÉSULTAT:
-Carton 1: 15 claviers + 50 câbles + 15 détecteurs ✅
-Carton 2: 15 claviers + compléments ✅
+RÉSULTAT COLIS:
+Colis 1: [Carton 1: 10 articles, Carton 2: 10 articles, Carton 3: 5 articles] ✅
+GARANTIE: 100% des articles critiques intégrés
 ```
 
 ---
