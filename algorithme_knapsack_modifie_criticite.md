@@ -175,20 +175,46 @@ DÉBUT
         articles_traités.ajouter(article)
     FIN POUR
 
-    // === PHASE 3: ARTICLES SAFE - REMPLISSAGE OPPORTUNISTE ===
-    articles_safe ← FiltrerParCriticite(liste_articles, ["SAFE"])
-    SOUSTRACTION(articles_safe, articles_traités)
+    // === PHASE 3: STRATÉGIE SPÉCIALE SI UNIQUEMENT URGENTS B ===
+    SI SeulementUrgentsB(liste_articles) ALORS
+        // Identifier articles à valoriser pour atteindre (min+max)/2
+        articles_valorisation ← IdentifierArticlesValorisationJ10()
 
-    POUR CHAQUE carton DANS cartons FAIRE
-        POUR CHAQUE article DANS articles_safe FAIRE
-            SI carton.PeutAjouterType(article.type) ALORS
-                quantite_possible ← carton.CalculerQuantiteMaxPossible(article)
-                SI quantite_possible > 0 ALORS
-                    carton.AjouterArticle(article, quantite_possible)
+        SI articles_valorisation.non_vide ALORS
+            // Trier par valeur décroissante
+            TRIER articles_valorisation PAR valeur DESCENDANT
+
+            POUR CHAQUE carton DANS cartons FAIRE
+                POUR CHAQUE article DANS articles_valorisation FAIRE
+                    SI carton.PeutAjouterType(article.type) ALORS
+                        quantite_optimale ← CalculerQuantiteOptimaleJ10(article)
+                        quantite_possible ← carton.CalculerQuantiteMaxPossible(article)
+                        quantite_ajoutee ← MIN(quantite_optimale, quantite_possible)
+
+                        SI quantite_ajoutee > 0 ALORS
+                            carton.AjouterArticle(article, quantite_ajoutee)
+                            article.quantite_valorisation ← article.quantite_valorisation - quantite_ajoutee
+                        FIN SI
+                    FIN SI
+                FIN POUR
+            FIN POUR
+        FIN SI
+    SINON
+        // === PHASE 3 STANDARD: ARTICLES SAFE - REMPLISSAGE OPPORTUNISTE ===
+        articles_safe ← FiltrerParCriticite(liste_articles, ["SAFE"])
+        SOUSTRACTION(articles_safe, articles_traités)
+
+        POUR CHAQUE carton DANS cartons FAIRE
+            POUR CHAQUE article DANS articles_safe FAIRE
+                SI carton.PeutAjouterType(article.type) ALORS
+                    quantite_possible ← carton.CalculerQuantiteMaxPossible(article)
+                    SI quantite_possible > 0 ALORS
+                        carton.AjouterArticle(article, quantite_possible)
+                    FIN SI
                 FIN SI
-            FIN SI
+            FIN POUR
         FIN POUR
-    FIN POUR
+    FIN SI
 
     // === PHASE 4: OPTIMISATION COLIS ===
     colis ← OptimiserRepartitionCartonsEnColis(cartons)
@@ -391,27 +417,35 @@ flowchart TD
     style OPTIMIZE fill:#e1f5fe
 ```
 
-### **Cas 2: Uniquement Articles Urgents B**
+### **Cas 2: Stratégie Spéciale Uniquement Urgents B + Valorisation**
 
 ```mermaid
 flowchart TD
     ONLY_URG_B[🟡 Uniquement<br/>Urgents B] --> CREATE_BASE[📦 Créer Cartons<br/>Base Urgents B]
-    
-    CREATE_BASE --> REMAINING_SPACE[📏 Calculer Espace<br/>Restant]
-    
-    REMAINING_SPACE --> FIND_CANDIDATES[🔍 Identifier Candidats<br/>Stock < (Min+Max)/2]
-    
-    FIND_CANDIDATES --> PRIORITIZE[📊 Calculer Scores<br/>Priorisation]
-    
-    PRIORITIZE --> SELECT_BEST[🏆 Sélectionner<br/>Meilleurs Candidats]
-    
-    SELECT_BEST --> FILL_OPTIMAL[📦 Remplir jusqu'à<br/>Capacité Optimale]
-    
-    FILL_OPTIMAL --> TARGET_STOCK[🎯 Ajuster Stocks vers<br/>(Min+Max)/2]
-    
+
+    CREATE_BASE --> CHECK_SPACE[📏 Vérifier Espace<br/>Disponible dans Cartons]
+
+    CHECK_SPACE --> SPACE_OK{Espace<br/>Disponible?}
+
+    SPACE_OK -->|OUI| FIND_VALORISATION[🔍 Identifier Articles<br/>Stock J+10 < (Min+Max)/2]
+    SPACE_OK -->|NON| FINAL_URG_B[📦 Colis Urgents B<br/>Uniquement]
+
+    FIND_VALORISATION --> HAS_CANDIDATES{Articles à<br/>Valoriser?}
+
+    HAS_CANDIDATES -->|OUI| SORT_VALUE[📊 Trier par Valeur<br/>Décroissante]
+    HAS_CANDIDATES -->|NON| FINAL_URG_B
+
+    SORT_VALUE --> FILL_VALUE[💎 Remplir avec Articles<br/>Haute Valeur]
+
+    FILL_VALUE --> TARGET_STOCK[🎯 Objectif: Stock → (Min+Max)/2<br/>SANS Nouveaux Cartons]
+
+    TARGET_STOCK --> FINAL_MIXED[📦 Colis Optimisé<br/>Urgents B + Valorisation]
+
     style ONLY_URG_B fill:#fff3e0
-    style PRIORITIZE fill:#e1f5fe
+    style FIND_VALORISATION fill:#e1f5fe
+    style SORT_VALUE fill:#e8f5e8
     style TARGET_STOCK fill:#c8e6c9
+    style FINAL_MIXED fill:#f3e5f5
 ```
 
 ---
@@ -570,64 +604,86 @@ DÉBUT
 FIN
 ```
 
-### **Fonction: Identifier Articles Complémentaires**
+### **Fonction: Identifier Articles Valorisation J+10**
 
 ```
-FONCTION IdentifierArticlesComplementaires()
+FONCTION IdentifierArticlesValorisationJ10()
 DÉBUT
-    articles_candidats ← []
+    articles_valorisation ← []
     tous_articles ← GetTousArticlesStock()
-    
+
     POUR CHAQUE article DANS tous_articles FAIRE
-        stock_actuel ← article.stock_actuel
-        stock_min ← article.stock_minimum  
+        stock_prevu_j10 ← article.stock_actuel - article.consommation_prevue_j10
+        stock_min ← article.stock_minimum
         stock_max ← article.stock_maximum
         stock_optimal ← (stock_min + stock_max) / 2
-        
-        // Sélectionner articles en-dessous du stock optimal
-        SI stock_actuel < stock_optimal ALORS
-            quantite_complementaire ← stock_optimal - stock_actuel
-            score_priorite ← CalculerScorePriorite(article)
-            
-            articles_candidats.ajouter({
+
+        // Sélectionner articles avec stock J+10 < optimal
+        SI stock_prevu_j10 < stock_optimal ALORS
+            quantite_valorisation ← stock_optimal - stock_prevu_j10
+            valeur_unitaire ← article.valeur_unitaire // € par pièce
+
+            articles_valorisation.ajouter({
                 article: article,
-                quantite: quantite_complementaire,
-                score: score_priorite
+                quantite_valorisation: quantite_valorisation,
+                valeur: valeur_unitaire,
+                stock_j10: stock_prevu_j10,
+                stock_optimal: stock_optimal
             })
         FIN SI
     FIN POUR
-    
-    // Trier par score décroissant
-    TRIER articles_candidats PAR score DESCENDANT
-    
-    RETOURNER articles_candidats
+
+    // Retourner vide si tous les articles ont stock J+10 >= optimal
+    SI articles_valorisation.vide ALORS
+        RETOURNER []
+    FIN SI
+
+    RETOURNER articles_valorisation
 FIN
 ```
 
-### **Fonction: Compléter Par Priorisation**
+### **Fonction: Calculer Quantité Optimale J+10**
 
 ```
-FONCTION CompleterParPriorisation(carton, articles_complementaires)
+FONCTION CalculerQuantiteOptimaleJ10(article)
 DÉBUT
-    POUR CHAQUE article_candidat DANS articles_complementaires FAIRE
-        quantite_max_possible ← carton.calculerQuantiteMaxPossible(article_candidat.article)
-        
-        SI quantite_max_possible > 0 ALORS
-            quantite_a_ajouter ← MIN(article_candidat.quantite, quantite_max_possible)
-            
-            SI carton.peutAjouter(article_candidat.article, quantite_a_ajouter) ALORS
-                carton.ajouterArticle(article_candidat.article, quantite_a_ajouter)
-                
-                // Mettre à jour la quantité restante
-                article_candidat.quantite ← article_candidat.quantite - quantite_a_ajouter
-                
-                // Arrêter si carton plein
-                SI carton.estPlein() ALORS
-                    SORTIR
-                FIN SI
-            FIN SI
+    stock_prevu_j10 ← article.stock_actuel - article.consommation_prevue_j10
+    stock_optimal ← (article.stock_minimum + article.stock_maximum) / 2
+
+    // Quantité nécessaire pour atteindre le stock optimal
+    quantite_necessaire ← stock_optimal - stock_prevu_j10
+
+    // S'assurer que la quantité est positive
+    SI quantite_necessaire <= 0 ALORS
+        RETOURNER 0
+    FIN SI
+
+    RETOURNER quantite_necessaire
+FIN
+```
+
+### **Fonction: Vérifier Si Uniquement Urgents B**
+
+```
+FONCTION SeulementUrgentsB(liste_articles)
+DÉBUT
+    articles_non_safe ← []
+
+    POUR CHAQUE article DANS liste_articles FAIRE
+        SI article.criticite ≠ "SAFE" ALORS
+            articles_non_safe.ajouter(article)
         FIN SI
     FIN POUR
+
+    // Vérifier si tous les articles non-SAFE sont des Urgents B
+    POUR CHAQUE article DANS articles_non_safe FAIRE
+        SI article.criticite ≠ "URG_B" ALORS
+            RETOURNER FAUX
+        FIN SI
+    FIN POUR
+
+    // Il doit y avoir au moins un article Urgent B
+    RETOURNER articles_non_safe.taille > 0
 FIN
 ```
 
@@ -660,22 +716,55 @@ Colis 1: [Carton 1: 5 centrales + 3 caméras + 20 détecteurs + 27 câbles,
           Carton 3: 23 câbles] ✅
 ```
 
-### **Exemple 2: Articles Critiques Volumineux**
+### **Exemple 2: Stratégie Spéciale - Uniquement Urgents B + Valorisation**
 
 ```
 DONNÉES ENTRÉE:
-- 25 Articles CRITIQUES B Type 1 (max 10/carton) ⚡ OBLIGATOIRE
+- 30 Claviers URGENTS B Type 2 (max 15/carton)
+
+STOCKS ACTUELS (Prévision J+10):
+- Détecteurs Type 3: Stock J+10 = 20, Optimal (min+max)/2 = 35, Valeur = 50€
+- Câbles Type 3: Stock J+10 = 80, Optimal (min+max)/2 = 75, Valeur = 10€
+- Centrales Type 1: Stock J+10 = 8, Optimal (min+max)/2 = 12, Valeur = 200€
 
 EXÉCUTION:
-Phase 1 (Obligatoire):
-- Carton 1: 10 articles Type 1
-- Carton 2: 10 articles Type 1
-- Carton 3: 5 articles Type 1
-Phase 3 (SAFE): Compléter cartons avec autres types si disponibles
+Phase 2 (Urgents B):
+- Carton 1: 15 claviers Type 2
+- Carton 2: 15 claviers Type 2
+
+Phase 3 (Valorisation - Uniquement Urgents B détectés):
+Articles à valoriser par valeur décroissante:
+1. Centrales: +4 unités (200€/u) → Carton 1: impossible (Type différent)
+2. Détecteurs: +15 unités (50€/u) → Carton 1: +15 détecteurs ✅
+3. Centrales: +4 unités → Carton 2: impossible (Type différent)
 
 RÉSULTAT COLIS:
-Colis 1: [Carton 1: 10 articles, Carton 2: 10 articles, Carton 3: 5 articles] ✅
-GARANTIE: 100% des articles critiques intégrés
+Colis 1: [Carton 1: 15 claviers + 15 détecteurs (max 50 Type 3),
+          Carton 2: 15 claviers] ✅
+VALORISATION: +750€ de stock optimisé dans cartons existants
+```
+
+### **Exemple 3: Cas Limite - Tous Stocks Optimaux**
+
+```
+DONNÉES ENTRÉE:
+- 20 Claviers URGENTS B Type 2 (max 15/carton)
+
+STOCKS ACTUELS (Prévision J+10):
+- Tous les articles ont Stock J+10 ≥ (min+max)/2
+
+EXÉCUTION:
+Phase 2 (Urgents B):
+- Carton 1: 15 claviers
+- Carton 2: 5 claviers
+
+Phase 3 (Valorisation):
+- Aucun article à valoriser trouvé
+- Cartons gardés tels quels
+
+RÉSULTAT COLIS:
+Colis 1: [Carton 1: 15 claviers, Carton 2: 5 claviers] ✅
+STRATÉGIE: Colis Urgents B uniquement (optimisation impossible)
 ```
 
 ---
