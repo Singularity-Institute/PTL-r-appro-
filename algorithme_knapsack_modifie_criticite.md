@@ -427,7 +427,7 @@ flowchart TD
 
     CHECK_SPACE --> SPACE_OK{Espace<br/>Disponible?}
 
-    SPACE_OK -->|OUI| FIND_VALORISATION[🔍 Identifier Articles<br/>Stock J+10 < (Min+Max)/2]
+    SPACE_OK -->|OUI| FIND_VALORISATION[🔍 Identifier Articles<br/>Stock J+10 inférieur Min+Max/2]
     SPACE_OK -->|NON| FINAL_URG_B[📦 Colis Urgents B<br/>Uniquement]
 
     FIND_VALORISATION --> HAS_CANDIDATES{Articles à<br/>Valoriser?}
@@ -437,9 +437,9 @@ flowchart TD
 
     SORT_VALUE --> FILL_VALUE[💎 Remplir avec Articles<br/>Haute Valeur]
 
-    FILL_VALUE --> TARGET_STOCK[🎯 Objectif: Stock → (Min+Max)/2<br/>SANS Nouveaux Cartons]
+    FILL_VALUE --> TARGET_STOCK[🎯 Objectif: Stock vers Min+Max/2<br/>SANS Nouveaux Cartons]
 
-    TARGET_STOCK --> FINAL_MIXED[📦 Colis Optimisé<br/>Urgents B + Valorisation]
+    TARGET_STOCK --> FINAL_MIXED[📦 Colis Optimisé<br/>Urgents B et Valorisation]
 
     style ONLY_URG_B fill:#fff3e0
     style FIND_VALORISATION fill:#e1f5fe
