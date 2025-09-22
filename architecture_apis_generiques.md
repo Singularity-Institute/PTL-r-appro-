@@ -107,15 +107,15 @@ classDiagram
     }
 
     %% Relations
-    Technician ||--o{ Stock : owns
-    Technician ||--o{ Intervention : assigned
-    Article ||--o{ Stock : stored
-    Article ||--o{ ArticleRequirement : required
-    Intervention ||--o{ ArticleRequirement : contains
-    Stock ||--o{ ConsumptionForecast : source
-    Stock ||--o{ StockProjection : projects
-    ConsumptionForecast ||--o{ StockProjection : influences
-    StockProjection ||--o{ ConsumptionEvent : contains
+    Technician ||--o{ Stock
+    Technician ||--o{ Intervention
+    Article ||--o{ Stock
+    Article ||--o{ ArticleRequirement
+    Intervention ||--o{ ArticleRequirement
+    Stock ||--o{ ConsumptionForecast
+    Stock ||--o{ StockProjection
+    ConsumptionForecast ||--o{ StockProjection
+    StockProjection ||--o{ ConsumptionEvent
 ```
 
 ---
