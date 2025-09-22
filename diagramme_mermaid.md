@@ -1,95 +1,84 @@
-# Diagramme Mermaid - Système de gestion
+# Diagramme Mermaid - Cycle de vie du système de gestion
 
 ```mermaid
-graph TD
-    %% Fichiers Excel
-    subgraph "Fichiers Excel"
-        CROW[CROW]
-        MEHARI[MEHARI]
-        SIM["SIM ORANGE"]
-    end
+stateDiagram-v2
+    direction TB
 
-    %% Conteneurs
-    subgraph "Containers"
-        PTL[PROTECTLINE]
-        ESAT_M[ESAT MOULINS<br/>YZEURE]
-        ESAT_MONT[ESAT MONTLUCON]
-    end
+    %% États principaux du cycle de vie
+    [*] --> Initialisation : Démarrage système
 
-    %% Points-Relais et Techniciens
-    PR1[Point-Relais]
-    PR2[Point-Relais]
-    TECH_OKS[TECHNICIENS<br/>OKS]
-    TECH_PTL[TECHNICIENS<br/>PTL<br/>ELI]
+    state Initialisation {
+        direction LR
+        [*] --> CROW
+        [*] --> MEHARI
+        [*] --> SIM_ORANGE
+        CROW --> PROTECTLINE : Import données
+        MEHARI --> PROTECTLINE : Import données
+        SIM_ORANGE --> PROTECTLINE : Import données
+    }
 
-    %% Client et états
-    CLIENT[Client]
-    DISPO1[(Dispo)]
-    DISPO2[(Dispo)]
-    RETOUR1[(A Retour)]
-    RETOUR2[(A Retour)]
+    Initialisation --> Distribution : Données chargées
 
-    %% Connexions depuis fichiers Excel vers PROTECTLINE
-    CROW --> PTL
-    MEHARI --> PTL
-    SIM --> PTL
+    state Distribution {
+        direction TB
+        PROTECTLINE --> ESAT_MOULINS : APP
+        PROTECTLINE --> ESAT_MONTLUCON : APP
+        ESAT_MOULINS --> ESAT_MONTLUCON : APP
+        ESAT_MONTLUCON --> ESAT_MOULINS : APP
+    }
 
-    %% Connexions APP entre conteneurs
-    PTL -->|APP| ESAT_MONT
-    ESAT_MONT -->|APP| PTL
-    PTL -->|APP| ESAT_M
-    ESAT_M -->|APP| PTL
-    ESAT_M -->|APP| ESAT_MONT
-    ESAT_MONT -->|APP| ESAT_M
+    Distribution --> Preparation : Données distribuées
 
-    %% Connexions vers Points-Relais
-    ESAT_M -->|APP| PR1
-    ESAT_MONT -->|APP| PR2
+    state Preparation {
+        direction TB
+        ESAT_MOULINS --> Point_Relais_Nord : APP
+        ESAT_MONTLUCON --> Point_Relais_Sud : APP
 
-    %% Connexions vers Techniciens
-    PR1 -->|APP| TECH_OKS
-    PR2 -->|APP| TECH_PTL
+        state Point_Relais_Nord {
+            direction LR
+            [*] --> TECHNICIENS_OKS
+            TECHNICIENS_OKS --> Dispo_Nord
+            TECHNICIENS_OKS --> A_Retour_Nord
+        }
 
-    %% États des techniciens
-    TECH_OKS --- DISPO1
-    TECH_OKS --- RETOUR1
-    TECH_PTL --- DISPO2
-    TECH_PTL --- RETOUR2
+        state Point_Relais_Sud {
+            direction LR
+            [*] --> TECHNICIENS_PTL_ELI
+            TECHNICIENS_PTL_ELI --> Dispo_Sud
+            TECHNICIENS_PTL_ELI --> A_Retour_Sud
+        }
+    }
 
-    %% Connexions Client
-    ESAT_MONT -->|SVL| CLIENT
-    ESAT_MONT -->|EX| CLIENT
-    CLIENT -->|SVL| ESAT_M
-    CLIENT -->|DMP| ESAT_M
-    CLIENT -->|DMT| ESAT_M
+    Preparation --> Service_Client : Techniciens prêts
 
-    %% Retours techniciens vers conteneurs
-    TECH_OKS -->|REN| ESAT_M
-    TECH_OKS -->|REO| ESAT_M
-    TECH_PTL -->|REN| ESAT_M
-    TECH_PTL -->|REO| ESAT_M
+    state Service_Client {
+        direction TB
+        ESAT_MONTLUCON --> CLIENT : Services (SVL/EX)
+        CLIENT --> ESAT_MOULINS : Demandes (SVL/DMP/DMT)
 
-    %% Urgences
-    PTL -->|URGENCES| TECH_PTL
+        %% Interventions
+        TECHNICIENS_OKS --> CLIENT : INTER
+        CLIENT --> TECHNICIENS_OKS : INTER
+        CLIENT --> TECHNICIENS_PTL_ELI : INTER
+        TECHNICIENS_PTL_ELI --> CLIENT : INTER
+    }
 
-    %% Interventions
-    TECH_OKS -->|INTER| CLIENT
-    CLIENT -->|INTER| TECH_OKS
-    CLIENT -->|INTER| TECH_PTL
-    TECH_PTL -->|INTER| CLIENT
+    Service_Client --> Retour_Equipement : Services terminés
 
-    %% Styles
-    classDef excelFiles fill:#e6d7ff,stroke:#9966cc,stroke-width:2px
-    classDef containers fill:#ffe6cc,stroke:#ff9933,stroke-width:2px
-    classDef relais fill:#d7f4f4,stroke:#4db8b8,stroke-width:2px
-    classDef techniciens fill:#d4f4dd,stroke:#66cc66,stroke-width:2px
-    classDef client fill:#f9f9f9,stroke:#333,stroke-width:2px
-    classDef storage fill:#fff2cc,stroke:#d6b656,stroke-width:2px
+    state Retour_Equipement {
+        direction TB
+        TECHNICIENS_OKS --> ESAT_MOULINS : Retours (REN/REO)
+        TECHNICIENS_PTL_ELI --> ESAT_MOULINS : Retours (REN/REO)
+    }
 
-    class CROW,MEHARI,SIM excelFiles
-    class PTL,ESAT_M,ESAT_MONT containers
-    class PR1,PR2 relais
-    class TECH_OKS,TECH_PTL techniciens
-    class CLIENT client
-    class DISPO1,DISPO2,RETOUR1,RETOUR2 storage
+    state Gestion_Urgences {
+        PROTECTLINE --> TECHNICIENS_PTL_ELI : URGENCES
+    }
+
+    Retour_Equipement --> Distribution : Cycle suivant
+    Service_Client --> Gestion_Urgences : Si urgence
+    Gestion_Urgences --> Service_Client : Urgence traitée
+
+    %% Fin du cycle
+    Retour_Equipement --> [*] : Fin de journée
 ```
