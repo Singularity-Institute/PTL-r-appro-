@@ -107,9 +107,9 @@ classDiagram
     }
 
     %% Relations
-    Technician ||--o{ Stock : possède
-    Technician ||--o{ Intervention : assignée
-    Article ||--o{ Stock : stocké
+    Technician ||--o{ Stock : possede
+    Technician ||--o{ Intervention : assignee
+    Article ||--o{ Stock : stocke
     Article ||--o{ ArticleRequirement : requis
     Intervention ||--o{ ArticleRequirement : contient
     Stock ||--o{ ConsumptionForecast : source
