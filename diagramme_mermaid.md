@@ -2,83 +2,65 @@
 
 ```mermaid
 stateDiagram-v2
-    direction TB
-
-    %% États principaux du cycle de vie
-    [*] --> Initialisation : Démarrage système
+    [*] --> Initialisation
 
     state Initialisation {
-        direction LR
-        [*] --> CROW
-        [*] --> MEHARI
-        [*] --> SIM_ORANGE
-        CROW --> PROTECTLINE : Import données
-        MEHARI --> PROTECTLINE : Import données
-        SIM_ORANGE --> PROTECTLINE : Import données
+        CROW --> PROTECTLINE
+        MEHARI --> PROTECTLINE
+        SIM_ORANGE --> PROTECTLINE
     }
 
-    Initialisation --> Distribution : Données chargées
+    Initialisation --> Distribution
 
     state Distribution {
-        direction TB
-        PROTECTLINE --> ESAT_MOULINS : APP
-        PROTECTLINE --> ESAT_MONTLUCON : APP
-        ESAT_MOULINS --> ESAT_MONTLUCON : APP
-        ESAT_MONTLUCON --> ESAT_MOULINS : APP
+        PROTECTLINE --> ESAT_MOULINS
+        PROTECTLINE --> ESAT_MONTLUCON
+        ESAT_MOULINS --> ESAT_MONTLUCON
+        ESAT_MONTLUCON --> ESAT_MOULINS
     }
 
-    Distribution --> Preparation : Données distribuées
+    Distribution --> Preparation
 
     state Preparation {
-        direction TB
-        ESAT_MOULINS --> Point_Relais_Nord : APP
-        ESAT_MONTLUCON --> Point_Relais_Sud : APP
-
-        state Point_Relais_Nord {
-            direction LR
-            [*] --> TECHNICIENS_OKS
-            TECHNICIENS_OKS --> Dispo_Nord
-            TECHNICIENS_OKS --> A_Retour_Nord
-        }
-
-        state Point_Relais_Sud {
-            direction LR
-            [*] --> TECHNICIENS_PTL_ELI
-            TECHNICIENS_PTL_ELI --> Dispo_Sud
-            TECHNICIENS_PTL_ELI --> A_Retour_Sud
-        }
+        ESAT_MOULINS --> Point_Relais_Nord
+        ESAT_MONTLUCON --> Point_Relais_Sud
+        Point_Relais_Nord --> TECHNICIENS_OKS
+        Point_Relais_Sud --> TECHNICIENS_PTL_ELI
+        TECHNICIENS_OKS --> Dispo_Nord
+        TECHNICIENS_OKS --> A_Retour_Nord
+        TECHNICIENS_PTL_ELI --> Dispo_Sud
+        TECHNICIENS_PTL_ELI --> A_Retour_Sud
     }
 
-    Preparation --> Service_Client : Techniciens prêts
+    Preparation --> Service_Client
 
     state Service_Client {
-        direction TB
-        ESAT_MONTLUCON --> CLIENT : Services (SVL/EX)
-        CLIENT --> ESAT_MOULINS : Demandes (SVL/DMP/DMT)
-
-        %% Interventions
+        ESAT_MONTLUCON --> CLIENT : Services_SVL_EX
+        CLIENT --> ESAT_MOULINS : Demandes_SVL_DMP_DMT
         TECHNICIENS_OKS --> CLIENT : INTER
         CLIENT --> TECHNICIENS_OKS : INTER
         CLIENT --> TECHNICIENS_PTL_ELI : INTER
         TECHNICIENS_PTL_ELI --> CLIENT : INTER
     }
 
-    Service_Client --> Retour_Equipement : Services terminés
+    Service_Client --> Retour_Equipement
 
     state Retour_Equipement {
-        direction TB
-        TECHNICIENS_OKS --> ESAT_MOULINS : Retours (REN/REO)
-        TECHNICIENS_PTL_ELI --> ESAT_MOULINS : Retours (REN/REO)
+        TECHNICIENS_OKS --> ESAT_MOULINS : Retours_REN_REO
+        TECHNICIENS_PTL_ELI --> ESAT_MOULINS : Retours_REN_REO
     }
 
     state Gestion_Urgences {
         PROTECTLINE --> TECHNICIENS_PTL_ELI : URGENCES
     }
 
-    Retour_Equipement --> Distribution : Cycle suivant
-    Service_Client --> Gestion_Urgences : Si urgence
-    Gestion_Urgences --> Service_Client : Urgence traitée
+    Service_Client --> Gestion_Urgences
+    Gestion_Urgences --> Service_Client
+    Retour_Equipement --> Distribution
+    Retour_Equipement --> [*]
 
-    %% Fin du cycle
-    Retour_Equipement --> [*] : Fin de journée
+    note right of Initialisation : Import des fichiers Excel
+    note right of Distribution : Synchronisation des données
+    note right of Service_Client : Phase opérationnelle
+    note right of Retour_Equipement : Fin de cycle
 ```
