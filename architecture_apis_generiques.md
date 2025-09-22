@@ -39,74 +39,71 @@ D'après le diagramme, le système actuel comprend :
 ```mermaid
 classDiagram
     class Technician {
-        +String codeTechnicien
-        +String nom
-        +String zone
-        +List~String~ distributeurs
-        +Map~String, Integer~ competences
+        +codeTechnicien: String
+        +nom: String
+        +zone: String
+        +distributeurs: List
+        +competences: Map
     }
 
     class Article {
-        +String articleType
-        +String designation
-        +String categorie
-        +Double prixUnitaire
-        +Integer seuilCritique
+        +articleType: String
+        +designation: String
+        +categorie: String
+        +prixUnitaire: Double
+        +seuilCritique: Integer
     }
 
     class Stock {
-        +String codeTechnicien
-        +String articleType
-        +Integer quantiteActuelle
-        +Integer quantiteTransit
-        +Integer quantitePending
-        +Date lastUpdate
-        +String status
+        +codeTechnicien: String
+        +articleType: String
+        +quantiteActuelle: Integer
+        +quantiteTransit: Integer
+        +quantitePending: Integer
+        +lastUpdate: Date
+        +status: String
     }
 
     class Intervention {
-        +String interventionId
-        +String codeTechnicien
-        +String typeIntervention
-        +Date dateplanifiee
-        +String distributeur
-        +List~ArticleRequirement~ articlesRequis
-        +String status
+        +interventionId: String
+        +codeTechnicien: String
+        +typeIntervention: String
+        +datePlanifiee: Date
+        +distributeur: String
+        +status: String
     }
 
     class ArticleRequirement {
-        +String articleType
-        +Integer quantiteRequise
-        +Integer quantiteConsommee
-        +String priority
+        +articleType: String
+        +quantiteRequise: Integer
+        +quantiteConsommee: Integer
+        +priority: String
     }
 
     class ConsumptionForecast {
-        +String codeTechnicien
-        +String articleType
-        +String distributeur
-        +Integer quantitePrevisionnelle
-        +Date periodeDebut
-        +Date periodeFin
-        +Double facteurImprevus
+        +codeTechnicien: String
+        +articleType: String
+        +distributeur: String
+        +quantitePrevisionnelle: Integer
+        +periodeDebut: Date
+        +periodeFin: Date
+        +facteurImprevus: Double
     }
 
     class StockProjection {
-        +String codeTechnicien
-        +String articleType
-        +Date dateProjection
-        +Integer stockProjetee
-        +List~ConsumptionEvent~ evenements
+        +codeTechnicien: String
+        +articleType: String
+        +dateProjection: Date
+        +stockProjetee: Integer
     }
 
     class ConsumptionEvent {
-        +Date date
-        +Integer quantite
-        +String type
-        +String source
+        +date: Date
+        +quantite: Integer
+        +type: String
+        +source: String
     }
 
-    %% Relations
     Technician ||--o{ Stock
     Technician ||--o{ Intervention
     Article ||--o{ Stock
