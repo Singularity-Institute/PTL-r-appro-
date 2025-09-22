@@ -5,25 +5,25 @@
 ```mermaid
 graph TD
     %% API 1
-    A1[API 1: Récupération Stock en Transit]
-    A1_IN[Input:<br/>• CodeTechnicien<br/>• Article_Type]
-    A1_OUT[Output:<br/>OnDeliveryStock]
+    A1["API 1: Récupération Stock en Transit"]
+    A1_IN["Input:<br/>• CodeTechnicien<br/>• Article_Type"]
+    A1_OUT["Output:<br/>OnDeliveryStock"]
 
     %% API 2
-    A2[API 2: Initialisation Stock Initial]
-    A2_IN[Input:<br/>• CodeTechnicien<br/>• Article_Type]
-    A2_OUT[Output:<br/>Stock J0]
-    STOCK_D[Stock "D"]
+    A2["API 2: Initialisation Stock Initial"]
+    A2_IN["Input:<br/>• CodeTechnicien<br/>• Article_Type"]
+    A2_OUT["Output:<br/>Stock J0"]
+    STOCK_D["Stock D"]
 
     %% API 3
-    A3[API 3: Liste Articles par Intervention]
-    A3_IN[Input:<br/>• Intervention_Type<br/>• CodeTechnicien]
-    A3_OUT[Output:<br/>Article_Type : QTE_Brute]
+    A3["API 3: Liste Articles par Intervention"]
+    A3_IN["Input:<br/>• Intervention_Type<br/>• CodeTechnicien"]
+    A3_OUT["Output:<br/>Article_Type : QTE_Brute"]
 
     %% API 4
-    A4[API 4: Consommation Prévisionnelle]
-    A4_IN[Input:<br/>• CodeTechnicien<br/>• Search_depth<br/>• Distributeur<br/>• Imprev_Facteur]
-    A4_OUT[Output:<br/>Article_Type : QTE_Brute_Final_1]
+    A4["API 4: Consommation Prévisionnelle"]
+    A4_IN["Input:<br/>• CodeTechnicien<br/>• Search_depth<br/>• Distributeur<br/>• Imprev_Facteur"]
+    A4_OUT["Output:<br/>Article_Type : QTE_Brute_Final_1"]
 
     %% Relations
     A1_IN --> A1
