@@ -591,9 +591,91 @@ public class MetriquesOptimisation {
 
 ---
 
+## 📚 13. TABLEAUX DE RÉFÉRENCE DÉVELOPPEURS/ARCHITECTES
+
+### 🔧 Référence Complète des Méthodes et APIs
+
+| Service | Méthode | Entrées | Sortie | Fonctionnement | Utilisation | Complexité | Phase |
+|---------|---------|---------|--------|----------------|-------------|------------|-------|
+| **ServiceOptimisationColis** | `optimiserColis(context)` | OptimisationContext | PackingResult | Orchestrateur principal exécutant les 4 phases séquentiellement | Point d'entrée unique, gère le flux complet | O(n + m×C + k×W×C) | Toutes |
+| **ServiceOptimisationColis** | `executerPhase1Critiques(articles)` | List\<Article\> critiques | List\<Carton\> | Court-circuit : PLAFOND(occupation) cartons garantis | Traitement articles CRITIQUE_A/B/URGENT_A avec 100% garantie | O(n) | Phase 1 |
+| **ServiceOptimisationColis** | `executerPhase2UrgentB(cartons, articles)` | Cartons existants + Articles URGENT_B | List\<Carton\> | Complétion intelligente avec gestion quantités partielles selon RG-005 | Remplissage optimal cartons existants avec URGENT_B | O(m×C) | Phase 2 |
+| **ServiceOptimisationColis** | `executerPhase3Safe(cartons, articles)` | Cartons + Articles SAFE | List\<Carton\> | Knapsack multi-contraintes avec objectif (min+max)/2 | Optimisation valorisation stock sur espace restant | O(k×W×C) | Phase 3 |
+| **ServiceOptimisationColis** | `executerPhase4Validation(cartons)` | List\<Carton\> | PackingResult | Validation contraintes + génération métriques + rapport final | Contrôle qualité et consolidation résultats | O(C) | Phase 4 |
+| **ServiceCalculOccupation** | `calculerOccupationRequise(articles)` | List\<Article\> | double | Σ(quantité × coefficient) pour tous les articles | Calcul besoins en espace total pour court-circuit | O(n) | Phase 1 |
+| **ServiceCalculOccupation** | `calculerNombreCartonsNecessaires(occupation)` | double | int | PLAFOND(occupation_totale) avec garantie mathématique | Détermination nombre cartons exact pour critiques | O(1) | Phase 1 |
+| **ServiceCalculOccupation** | `verifierCapaciteCarton(carton, article)` | Carton + Article | boolean | Teste si (occupation_actuelle + article.occupation) ≤ 1.0 | Validation placement avant ajout article | O(1) | Phases 2,3 |
+| **ServiceCalculOccupation** | `distribuerArticlesParCartons(articles, nb)` | List\<Article\> + int | Map\<Integer,List\<Article\>\> | Répartition équilibrée articles sur N cartons par algorithme round-robin | Distribution optimale articles critiques sur cartons créés | O(n) | Phase 1 |
+| **ServiceClassificationArticles** | `filtrerParGrade(articles, grades)` | List\<Article\> + List\<Grade\> | List\<Article\> | Filtrage articles correspondant aux grades spécifiés (critiques, urgent_b, safe) | Séparation articles par criticité pour chaque phase | O(n) | Toutes |
+| **ServiceClassificationArticles** | `trierParPriorite(articles)` | List\<Article\> | List\<Article\> | Tri décroissant : CRITIQUE_A > CRITIQUE_B > URGENT_A > URGENT_B > SAFE | Garantie ordre de traitement selon règles métier | O(n log n) | Phases 1,2 |
+| **ServiceClassificationArticles** | `identifierStrategieOptimisation(articles)` | List\<Article\> | StrategieType | Analyse composition pour choisir : COURT_CIRCUIT, KNAPSACK, HYBRIDE | Optimisation performance selon type d'entrée | O(n) | Stratégie |
+| **ServiceProjectionStock** | `calculerObjectifStockOptimal(article, depth)` | Article + int | int | Calcul (stock_min + stock_max) / 2 sur horizon temporel | Définition cible optimisation pour articles SAFE | O(depth) | Phase 3 |
+| **ServiceProjectionStock** | `calculerQuantiteOptimale(article, objectif)` | Article + int | int | objectif_stock - stock_final_projete avec contraintes positives | Détermination quantité recommandée pour knapsack | O(1) | Phase 3 |
+| **ServiceProjectionStock** | `evaluerInteretValorisationStock(article, depth)` | Article + int | double | Score basé sur écart objectif et impact stock : plus écart grand = plus intérêt | Priorisation articles SAFE dans fonction objectif knapsack | O(depth) | Phase 3 |
+| **ServiceValidationContraintes** | `validerOccupationCarton(carton)` | Carton | boolean | Vérification occupation_actuelle ≤ 1.0 + cohérence articles_contenus | Contrôle intégrité finale chaque carton | O(articles_carton) | Phase 4 |
+| **ServiceValidationContraintes** | `validerCoherenceDonnees(result)` | PackingResult | boolean | Validation globale : articles_placés ≤ articles_input, sommes cohérentes | Contrôle intégrité algorithme complet | O(total_articles) | Phase 4 |
+| **ServiceValidationContraintes** | `genererRapportValidation(result)` | PackingResult | ValidationReport | Génération métriques, warnings, et rapport détaillé avec KPI | Production rapport final pour monitoring/audit | O(cartons + articles) | Phase 4 |
+| **AlgorithmeKnapsack** | `initialiserTableDP(n, W)` | int n articles + int W capacité | double\[\]\[\] | Création matrice DP[n+1][W+1] initialisée à 0.0 | Préparation structure mémorisation programmation dynamique | O(n×W) | Phase 3 |
+| **AlgorithmeKnapsack** | `calculerValeurValorisationStock(article)` | Article SAFE | double | (stock_min + stock_max)/2 - stock_final avec bonus écart important | Fonction utilité pour maximisation knapsack | O(1) | Phase 3 |
+| **AlgorithmeKnapsack** | `reconstruireSolution(dp, articles, W)` | DP table + articles + capacité | List\<Article\> | Backtracking depuis dp[n][W] pour retrouver articles optimaux sélectionnés | Extraction solution optimale de la table de programmation dynamique | O(n) | Phase 3 |
+| **AlgorithmeKnapsack** | `appliquerSolution(carton, solution)` | Carton + List\<Article\> | void | Placement effectif articles sélectionnés dans carton avec mise à jour occupation | Application concrète résultat knapsack sur carton physique | O(solution.size) | Phase 3 |
+| **GestionQuantitesPartielles** | `calculerCapaciteLibre(carton)` | Carton | double | 1.0 - carton.occupation_actuelle avec validation ≥ 0 | Évaluation espace disponible pour placement URGENT_B | O(1) | Phase 2 |
+| **GestionQuantitesPartielles** | `calculerQuantiteMaxPossible(capacite, article)` | double + Article | int | capacite_libre / article.coefficient avec PLANCHER() | Limite quantité plaçable selon contraintes physiques | O(1) | Phase 2 |
+| **GestionQuantitesPartielles** | `placerQuantitePartielle(carton, article, qte)` | Carton + Article + int | boolean | Placement qte ≤ quantite_totale avec mise à jour occupation et contenu | Exécution placement partiel selon RG-005 | O(1) | Phase 2 |
+| **GestionQuantitesPartielles** | `enregistrerQuantitePartielle(article, qte_placee)` | Article + int | ArticlePartiel | Création enregistrement quantité non satisfaite pour rapport | Traçabilité décisions quantités partielles pour audit | O(1) | Phase 2 |
+| **UtilitairesCommuns** | `discretiserCapacite(capacite_continue)` | double | int | ARRONDI(capacite × 100) selon RG-006 pour DP | Transformation continue → discret pour knapsack résolvable | O(1) | Phase 3 |
+| **UtilitairesCommuns** | `validerCoefficientsOccupation(coefficients)` | Map\<Type,Double\> | boolean | Vérification tous coefficients > 0 et ≤ 1.0 | Validation configuration métier avant traitement | O(types) | Init |
+| **UtilitairesCommuns** | `calculerTauxOccupationMoyen(cartons)` | List\<Carton\> | double | Moyenne pondérée occupations avec gestion cartons vides | Métrique efficacité utilisation espace pour KPI | O(cartons) | Phase 4 |
+| **UtilitairesCommuns** | `genererMetriquesPerformance(debut, fin, memoire)` | long + long + long | MetriquesOptimisation | Calcul temps exécution, mémoire peak, ratios satisfaction | Production indicateurs performance pour monitoring | O(1) | Phase 4 |
+
+### 📊 Référence Complète des Variables et Paramètres
+
+| Variable | Type | Domaine/Valeurs | Description Fonctionnelle | Utilisation Algorithme | Calcul/Assignation | Contraintes | Impact Performance | Phase |
+|----------|------|----------------|---------------------------|----------------------|------------------|-------------|-------------------|--------|
+| **context.articles_input** | List\<Article\> | 1 à N articles | Liste complète articles à traiter dans le colis | Point d'entrée unique, classifiée par criticité en début | Fourni par couche métier/UI | N > 0, articles valides | O(n) parcours | Entrée |
+| **context.contraintes_carton** | CartonConstraints | capacite_max = 1.0 | Contraintes physiques cartons standardisés | Validation placements, calculs occupation | Configuration système | capacite > 0 | Constant | Toutes |
+| **context.coefficients_occupation** | Map\<Type,Double\> | TYPE_1=0.2, TYPE_2=0.25, TYPE_3=0.1 | Règles métier occupation par type article | Calculs occupation, contraintes knapsack | Configuration métier RG-002 | 0 < coeff ≤ 1.0 | O(1) lookup | Toutes |
+| **context.search_depth** | int | 1-30 jours | Horizon temporel projections stock pour SAFE | Calcul objectifs valorisation stock | Paramètre métier configurable | > 0, ≤ horizon_max | O(depth) calculs | Phase 3 |
+| **articles_critiques** | List\<Article\> | 0 à N articles | Articles CRITIQUE_A/B + URGENT_A pour court-circuit | Phase 1 : traitement prioritaire garanti 100% | Filtrage grades critiques | Triés par priorité | O(n) traitement | Phase 1 |
+| **articles_urgent_b** | List\<Article\> | 0 à M articles | Articles URGENT_B pour complétion avec quantités partielles | Phase 2 : remplissage cartons existants | Filtrage grade URGENT_B | Quantités partielles acceptées | O(m×C) placement | Phase 2 |
+| **articles_safe** | List\<Article\> | 0 à K articles | Articles SAFE pour optimisation knapsack valorisation | Phase 3 : optimisation espace restant | Filtrage grade SAFE | Projections stock valides | O(k×W×C) knapsack | Phase 3 |
+| **occupation_totale** | double | 0.0 à N×max(coeff) | Somme totale occupation articles critiques | Calcul nombre cartons nécessaires phase 1 | Σ(quantité × coefficient) | ≥ 0 | O(n) calcul | Phase 1 |
+| **nombre_cartons_requis** | int | 1 à N cartons | Cartons nécessaires = PLAFOND(occupation_totale) | Création exacte cartons pour garantie 100% critiques | PLAFOND(occupation_totale) | ≥ 1 | O(1) calcul | Phase 1 |
+| **cartons_resultats** | List\<Carton\> | 1 à N cartons | Cartons créés et progressivement remplis | État intermédiaire entre phases, résultat final | Création phase 1, modification phases 2-3 | occupation ≤ 1.0 | O(C) gestion | Toutes |
+| **quantite_restante** | int | 0 à quantite_totale | Quantité article URGENT_B non encore placée | Suivi progression placement quantités partielles | quantite_totale - Σ(quantites_placees) | ≥ 0 | O(1) mise à jour | Phase 2 |
+| **capacite_libre** | double | 0.0 à 1.0 | Espace disponible dans carton = 1.0 - occupation | Contrainte placement article URGENT_B | 1.0 - carton.occupation_actuelle | ≥ 0 | O(1) calcul | Phase 2 |
+| **quantite_max_possible** | int | 0 à quantite_restante | Maximum quantité plaçable selon capacité carton | Limite calcul quantités partielles | PLANCHER(capacite_libre / coefficient) | ≤ quantite_restante | O(1) calcul | Phase 2 |
+| **quantite_partielle** | int | 0 à quantite_max_possible | Quantité effectivement placée (peut être < demandée) | Implémentation RG-005 acceptation partielle | MIN(quantite_restante, quantite_max_possible) | ≤ quantite_totale | O(1) placement | Phase 2 |
+| **capacite_restante** | double | 0.0 à 1.0 | Espace disponible carton pour knapsack SAFE | Contrainte continue knapsack multi-contraintes | 1.0 - occupation_actuelle par carton | ≥ 0 | O(1) par carton | Phase 3 |
+| **capacite_discretisee** | int | 0 à 100 | Capacité × 100 pour programmation dynamique | Transformation continue → discret selon RG-006 | ARRONDI(capacite_restante × 100) | 0 ≤ val ≤ 100 | O(1) conversion | Phase 3 |
+| **articles_candidats** | List\<Article\> | 0 à K articles | Articles SAFE pouvant entrer dans carton courant | Filtrage préalable knapsack par contrainte capacité | Filtrage capacité > cout_occupation | Capacité respectée | O(k) filtrage | Phase 3 |
+| **dp[i][w]** | double | 0.0 à valeur_max | Valeur optimale knapsack i articles, capacité w | Table mémorisation programmation dynamique | dp[i-1][w] ou dp[i-1][w-cout]+valeur | ≥ 0, croissante | O(n×W) espace | Phase 3 |
+| **cout_occupation_discret** | int | 1 à 100 | Occupation article × 100 pour DP discrète | Poids article dans contrainte knapsack discrète | ARRONDI(quantité × coefficient × 100) | 1 ≤ val ≤ capacite_discretisee | O(1) calcul | Phase 3 |
+| **valeur_stock** | double | R+ | Utilité valorisation stock pour fonction objectif | Maximisation knapsack : plus valeur haute = plus intérêt | (min+max)/2 - stock_final + bonus_ecart | > 0 si pertinent | O(1) calcul | Phase 3 |
+| **solution_optimale** | List\<Article\> | 0 à M articles | Articles sélectionnés par knapsack pour carton | Résultat backtracking table DP | Reconstruction depuis dp[n][W] | Respecte contraintes | O(n) reconstruction | Phase 3 |
+| **stock_projections** | int[] | Tableau[search_depth] | Projections stock par jour pour articles SAFE | Base calcul objectifs valorisation | Données métier/prévisions | Valeurs réalistes | O(depth) parcours | Phase 3 |
+| **stock_minimum** | int | MIN(projections) | Stock minimum projeté sur horizon | Borne inférieure objectif valorisation | MIN(stock_projections[0..depth]) | ≥ 0 | O(depth) calcul | Phase 3 |
+| **stock_maximum** | int | MAX(projections) | Stock maximum projeté sur horizon | Borne supérieure objectif valorisation | MAX(stock_projections[0..depth]) | ≥ stock_minimum | O(depth) calcul | Phase 3 |
+| **objectif_stock** | int | (min+max)/2 | Cible optimisation stock selon RG-004 | Point équilibre valorisation stock | (stock_minimum + stock_maximum) / 2 | Entre min et max | O(1) calcul | Phase 3 |
+| **stock_final** | int | projections[depth] | Stock projeté fin période | État futur si aucune action | stock_projections[search_depth] | Valeur réaliste | O(1) accès | Phase 3 |
+| **quantite_optimale** | int | objectif - stock_final | Quantité recommandée pour atteindre objectif | Besoin calculé pour valorisation | objectif_stock - stock_final | ≥ 0 si déficit | O(1) calcul | Phase 3 |
+| **ecart_objectif** | int | |objectif - stock_final| | Distance à l'objectif valorisation | Évaluation intérêt article pour priorisation | ABS(stock_final - objectif_stock) | ≥ 0 | O(1) calcul | Phase 3 |
+| **interet_valorisation** | double | 0.0 à score_max | Score intérêt article pour knapsack | Fonction utilité complexe avec bonus écart | Fonction(ecart, tendance, criticite_metier) | ≥ 0, plus haut = plus intéressant | O(1) calcul | Phase 3 |
+| **taux_satisfaction** | double | 0.0 à 1.0 | % articles placés par niveau criticité | Métrique qualité résultat | articles_places / articles_totaux par grade | 0 ≤ val ≤ 1.0 | O(1) ratio | Phase 4 |
+| **taux_occupation_moyen** | double | 0.0 à 1.0 | Occupation moyenne cartons créés | Métrique efficacité utilisation espace | Σ(carton.occupation) / nombre_cartons | > 0, idéalement > 0.85 | O(C) moyenne | Phase 4 |
+| **temps_execution_ms** | long | 0 à timeout_max | Durée exécution algorithme complet | Métrique performance temps réel | System.currentTimeMillis() fin - début | < seuils définis | Temps réel | Phase 4 |
+| **memoire_peak_bytes** | long | 0 à heap_max | Pic utilisation mémoire pendant traitement | Métrique performance mémoire | Runtime.getRuntime().totalMemory() | < limites système | Temps réel | Phase 4 |
+| **validation_success** | boolean | true/false | État validation globale algorithme | Indicateur qualité résultat final | ET logique toutes validations | true requis | O(1) | Phase 4 |
+| **quantites_partielles** | List\<ArticlePartiel\> | 0 à N enregistrements | Détail quantités URGENT_B non satisfaites | Traçabilité décisions RG-005 | Enregistrement lors acceptation partielle | Informatif audit | O(partielles) | Phase 4 |
+| **warnings** | List\<String\> | 0 à N messages | Alertes non bloquantes (SAFE ignorés, etc.) | Informations qualité pour monitoring | Ajout lors détection anomalies | Informatif debug | O(warnings) | Phase 4 |
+
+---
+
 **Créé le :** $(date)
 **Assigné à :** Équipe Backend
 **Reviewer :** Tech Lead + Product Owner
 **Sprint :** À définir selon roadmap produit
 
 > ⚠️ **Point d'Attention Critique :** La RG-005 (quantités partielles URGENT_B) est un cas limite métier important qui impacte directement la satisfaction utilisateur. Une attention particulière doit être portée à sa validation.
+
+> 📚 **Ces tableaux de référence constituent la documentation technique définitive pour l'implémentation. Ils doivent être consultés systématiquement lors du développement et des code reviews.**
