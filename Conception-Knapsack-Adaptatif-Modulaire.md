@@ -817,7 +817,7 @@ DEBUT
     FIN
 FIN
 ```
-```
+
 
 ## Algorithmes Principaux
 
