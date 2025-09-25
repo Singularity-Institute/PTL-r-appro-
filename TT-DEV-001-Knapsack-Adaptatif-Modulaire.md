@@ -413,13 +413,13 @@ flowchart TD
     F --> G{🔄 Pour i = 1 à n articles}
 
     G --> H{🔄 Pour w = 0 à capacite_restante}
-    H --> I[📦 article = articles_candidats[i-1]]
+    H --> I[📦 article = articles_candidats i-1]
     I --> J[⚖️ cout_occupation = quantite × coefficient]
     J --> K[💰 valeur_stock = CalculerValeurValorisationStock]
 
     K --> L{❓ cout_occupation ≤ w ?}
-    L -->|Oui| M[📈 dp[i][w] = MAX(dp[i-1][w], dp[i-1][w-cout] + valeur)]
-    L -->|Non| N[📋 dp[i][w] = dp[i-1][w]]
+    L -->|Oui| M[📈 dp i w = MAX dp i-1 w dp i-1 w-cout + valeur]
+    L -->|Non| N[📋 dp i w = dp i-1 w]
 
     M --> O{🔄 w suivant ?}
     N --> O
