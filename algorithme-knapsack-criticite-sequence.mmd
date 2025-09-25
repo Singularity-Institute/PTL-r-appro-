@@ -1,0 +1,75 @@
+sequenceDiagram
+    participant SYS as Système Principal
+    participant KN as KnapsackAvecContraintesCriticite
+    participant FLT as FilterService
+    participant VRF as VerificationService
+    participant ADJ as AjustementService
+    participant CAL as CalculService
+    participant KNC as KnapsackClassique
+    participant STR as StrategieComplementaire
+
+    Note over SYS: ===== OPTIMISATION KNAPSACK AVEC CRITICITÉ =====
+
+    SYS ->> KN: KnapsackAvecContraintesCriticite(materiels_classes, contraintes_types, capacite)
+
+    Note over KN: Étape 1 - Séparation par priorité
+    KN ->> FLT: Filtrer matériels obligatoires
+    FLT ->> FLT: FILTRER(grade IN [CRITIQUE_A, CRITIQUE_B, URGENT_A])
+    FLT -->> KN: obligatoires[]
+
+    KN ->> FLT: Filtrer matériels optionnels
+    FLT ->> FLT: FILTRER(grade = URGENT_B)
+    FLT -->> KN: optionnels[]
+
+    Note over KN: Étape 2 - Vérification faisabilité
+    KN ->> VRF: VerifierFaisabilite(obligatoires, contraintes_types, capacite)
+    VRF ->> VRF: Calculer volume/poids total obligatoires
+    VRF ->> VRF: Vérifier contraintes de types
+    VRF -->> KN: faisabilite (boolean)
+
+    alt Obligatoires non faisables
+        KN ->> ADJ: AjustementAutomatique(obligatoires, contraintes_types, capacite)
+        ADJ ->> ADJ: Retirer éléments moins prioritaires
+        ADJ ->> ADJ: Proposer alternatives
+        ADJ -->> KN: selection_ajustee[]
+        KN -->> SYS: selection_ajustee[]
+    else Obligatoires faisables
+        Note over KN: Étape 3 - Inclusion forcée critiques/urgents A
+        KN ->> KN: selection = obligatoires
+
+        KN ->> CAL: CalculerCapaciteUtilisee(obligatoires)
+        CAL ->> CAL: Sommer volumes/poids
+        CAL -->> KN: capacite_utilisee
+
+        KN ->> CAL: CalculerTypesUtilises(obligatoires)
+        CAL ->> CAL: Compter types par catégorie
+        CAL -->> KN: types_utilises
+
+        Note over KN: Étape 4 - Optimisation avec optionnels
+        KN ->> KN: capacite_restante = capacite - capacite_utilisee
+        KN ->> CAL: MiseAJourContraintes(contraintes_types, types_utilises)
+        CAL ->> CAL: Ajuster limites types restantes
+        CAL -->> KN: contraintes_restantes
+
+        alt Capacité restante > 0 ET optionnels disponibles
+            KN ->> KNC: KnapsackClassique(optionnels, capacite_restante, contraintes_restantes)
+            KNC ->> KNC: Algorithme 0/1 Knapsack optimisé
+            KNC ->> KNC: Maximiser valeur sous contraintes
+            KNC -->> KN: selection_optionnelle[]
+
+            KN ->> KN: FUSIONNER(selection, selection_optionnelle)
+        end
+
+        Note over KN: Étape 5 - Stratégie si uniquement Urgent B
+        alt Aucun obligatoire ET optionnels disponibles
+            KN ->> STR: StrategieComplementaireKnapsack(optionnels, contraintes_types, capacite)
+            STR ->> STR: Sélection optimale parmi Urgent B
+            STR ->> STR: Équilibrage types et capacité
+            STR -->> KN: selection_complementaire[]
+            KN ->> KN: selection = selection_complementaire
+        end
+
+        KN -->> SYS: selection[]
+    end
+
+    Note over SYS: Sélection optimisée retournée
