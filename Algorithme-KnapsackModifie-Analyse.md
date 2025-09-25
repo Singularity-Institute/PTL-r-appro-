@@ -1,364 +1,597 @@
-# Analyse de l'Algorithme KnapsackModifieParCriticite
+# Analyse de l'Algorithme Knapsack avec Contraintes de Criticité
 
 ## Vue d'ensemble
 
-L'algorithme `KnapsackModifieParCriticite` est une adaptation spécialisée du problème du knapsack qui optimise la répartition d'articles dans des cartons et colis selon leur niveau de criticité. Contrairement au knapsack classique, cet algorithme suit une approche séquentielle en 4 phases distinctes, privilégiant la satisfaction des besoins critiques avant l'optimisation de l'espace restant.
+L'algorithme `KnapsackAvecContraintesCriticite` est une adaptation sophistiquée du problème classique du sac à dos (knapsack) qui intègre la notion de criticité des matériels pour optimiser la composition des colis de réapprovisionnement. Contrairement au knapsack classique qui maximise simplement la valeur sous contrainte de capacité, cet algorithme priorise les matériels selon leur niveau d'urgence opérationnelle.
 
-## Architecture et Phases Algorithmiques
+## Architecture et Décomposition en API/Sous-méthodes
 
-### Phase 1 : Articles Obligatoires (CRIT_A + CRIT_B + URG_A)
-- **Garantie d'inclusion** : Tous les articles critiques doivent être traités
-- **Création de cartons dédiés** : Un carton par type d'article si nécessaire
-- **Pas de contrainte de capacité** : La criticité prime sur l'optimisation d'espace
+### 1. Service Principal
 
-### Phase 2 : Urgents B - Optimisation Opportuniste
-- **Complétion prioritaire** : Utilisation de l'espace libre des cartons existants
-- **Création conditionnelle** : Nouveaux cartons uniquement si nécessaire
-- **Double stratégie** : Optimisation puis création
+#### `KnapsackAvecContraintesCriticite`
+```
+FONCTION KnapsackAvecContraintesCriticite(materiels_classes, contraintes_types, capacite)
+```
+**Rôle** : Orchestrateur principal qui coordonne l'ensemble du processus d'optimisation
+**Entrées** :
+- `materiels_classes` : Liste des matériels avec leur classification d'urgence
+- `contraintes_types` : Limites par type de matériel
+- `capacite` : Capacité totale du colis (volume/poids)
 
-### Phase 3 : Stratégie Contextuelle
-- **Branchement conditionnel** : Comportement différent selon la composition des articles
-- **Stratégie spéciale** : Valorisation J10 si uniquement URGENT_B
-- **Stratégie standard** : Remplissage opportuniste avec articles SAFE
+### 2. FilterService - Service de Filtrage
 
-### Phase 4 : Optimisation Finale
-- **Répartition en colis** : Optimisation de la distribution des cartons
-- **Validation des contraintes** : Contrôle final par type d'article
+#### `FiltrerMaterielsObligatoires`
+```
+FONCTION FiltrerMaterielsObligatoires(materiels_classes) -> obligatoires[]
+```
+**Rôle** : Sépare les matériels critiques et urgents de grade A qui doivent être inclus obligatoirement
+**Logique** : `FILTRER(grade IN [CRITIQUE_A, CRITIQUE_B, URGENT_A])`
 
-## Diagramme d'États de l'Algorithme
+#### `FiltrerMaterielsOptionnels`
+```
+FONCTION FiltrerMaterielsOptionnels(materiels_classes) -> optionnels[]
+```
+**Rôle** : Identifie les matériels de grade URGENT_B qui peuvent être optimisés
+**Logique** : `FILTRER(grade = URGENT_B)`
+
+### 3. VerificationService - Service de Vérification
+
+#### `VerifierFaisabilite`
+```
+FONCTION VerifierFaisabilite(obligatoires, contraintes_types, capacite) -> boolean
+```
+**Rôle** : Vérifie si les matériels obligatoires peuvent physiquement tenir dans le colis
+**Vérifications** :
+- Volume/poids total ≤ capacité disponible
+- Respect des contraintes par type de matériel
+- Compatibilité des formats/dimensions
+
+### 4. AjustementService - Service d'Ajustement
+
+#### `AjustementAutomatique`
+```
+FONCTION AjustementAutomatique(obligatoires, contraintes_types, capacite) -> selection_ajustee[]
+```
+**Rôle** : Gère les situations où les matériels obligatoires excèdent la capacité
+**Stratégies** :
+- Retrait des matériels CRITIQUE_B les moins prioritaires
+- Fractionnement des quantités si possible
+- Proposition d'alternatives équivalentes
+- Génération d'alertes pour validation manuelle
+
+### 5. CalculService - Service de Calcul
+
+#### `CalculerCapaciteUtilisee`
+```
+FONCTION CalculerCapaciteUtilisee(materiels) -> capacite_utilisee
+```
+**Rôle** : Calcule l'espace total occupé par une sélection de matériels
+
+#### `CalculerTypesUtilises`
+```
+FONCTION CalculerTypesUtilises(materiels) -> types_utilises
+```
+**Rôle** : Comptabilise l'utilisation par catégorie de matériel
+
+#### `MiseAJourContraintes`
+```
+FONCTION MiseAJourContraintes(contraintes_types, types_utilises) -> contraintes_restantes
+```
+**Rôle** : Recalcule les limites disponibles après inclusion des matériels obligatoires
+
+### 6. KnapsackClassique - Optimisation Traditionnelle
+
+#### `KnapsackClassique`
+```
+FONCTION KnapsackClassique(optionnels, capacite_restante, contraintes_restantes) -> selection_optionnelle[]
+```
+**Rôle** : Applique l'algorithme 0/1 knapsack optimisé sur les matériels optionnels
+**Algorithme** : Programmation dynamique avec contraintes multiples
+**Objectif** : Maximiser la valeur ajoutée dans l'espace restant
+
+### 7. StrategieComplementaire - Stratégie de Fallback
+
+#### `StrategieComplementaireKnapsack`
+```
+FONCTION StrategieComplementaireKnapsack(optionnels, contraintes_types, capacite) -> selection_complementaire[]
+```
+**Rôle** : Gère le cas particulier où seuls des matériels URGENT_B sont disponibles
+**Stratégie** : Sélection équilibrée maximisant la couverture opérationnelle
+
+## Logique Algorithmique Détaillée
+
+### Phase 1 : Séparation par Criticité
+L'algorithme commence par trier les matériels selon leur classification d'urgence :
+- **Obligatoires** : CRITIQUE_A, CRITIQUE_B, URGENT_A (inclusion forcée)
+- **Optionnels** : URGENT_B (optimisation possible)
+
+Cette séparation reflète la réalité opérationnelle où certains matériels ne peuvent pas être différés.
+
+### Phase 2 : Vérification de Faisabilité
+Avant tout traitement, l'algorithme vérifie si les matériels obligatoires peuvent physiquement être inclus. Cette étape préventive évite les calculs inutiles et déclenche les procédures d'ajustement si nécessaire.
+
+### Phase 3 : Inclusion Forcée
+Les matériels obligatoires sont automatiquement inclus dans la sélection finale. Cette approche garantit que les besoins critiques sont satisfaits en priorité, respectant ainsi les contraintes opérationnelles.
+
+### Phase 4 : Optimisation Complémentaire
+L'espace restant est optimisé via l'algorithme knapsack classique appliqué aux matériels optionnels. Cette phase maximise la valeur ajoutée sans compromettre les besoins essentiels.
+
+### Phase 5 : Stratégie de Fallback
+Si aucun matériel obligatoire n'est identifié, l'algorithme active une stratégie alternative qui sélectionne optimalement parmi les matériels URGENT_B disponibles.
+
+## Avantages de l'Architecture
+
+### 1. Séparation des Responsabilités
+Chaque service a un rôle clairement défini, facilitant la maintenance et les tests unitaires.
+
+### 2. Flexibilité Opérationnelle
+L'approche modulaire permet d'adapter facilement les stratégies selon les contextes métier.
+
+### 3. Gestion des Cas Dégradés
+Les services d'ajustement et de stratégie complémentaire assurent une réponse systématique même en cas de contraintes impossibles.
+
+### 4. Optimisation Performance
+La vérification préalable évite les calculs coûteux sur des configurations non viables.
+
+## Complexité Algorithmique
+
+- **Complexité temporelle** : O(n×W) où n = nombre matériels optionnels, W = capacité restante
+- **Complexité spatiale** : O(n×W) pour la table de programmation dynamique
+- **Pré-traitement** : O(n) pour la classification et vérification
+
+## Cas d'Usage et Exemples
+
+### Cas Standard
+- Matériels obligatoires : 60% capacité
+- Matériels optionnels : optimisation sur 40% restant
+- Résultat : Sélection équilibrée respectant les priorités
+
+### Cas de Surcharge
+- Matériels obligatoires : 120% capacité
+- Déclenchement ajustement automatique
+- Résultat : Configuration viable avec alertes
+
+### Cas Minimaliste
+- Aucun matériel obligatoire
+- Activation stratégie complémentaire
+- Résultat : Sélection optimale parmi URGENT_B
+
+## Schémas UML
+
+### Diagramme de Classes
+
+```mermaid
+classDiagram
+    class KnapsackAvecContraintesCriticite {
+        +optimiser(materiels_classes, contraintes_types, capacite) Selection[]
+    }
+
+    class FilterService {
+        +filtrerMaterielsObligatoires(materiels) Materiel[]
+        +filtrerMaterielsOptionnels(materiels) Materiel[]
+    }
+
+    class VerificationService {
+        +verifierFaisabilite(obligatoires, contraintes, capacite) boolean
+        -calculerVolumeTotal(materiels) double
+        -verifierContraintesTypes(materiels, contraintes) boolean
+    }
+
+    class AjustementService {
+        +ajustementAutomatique(obligatoires, contraintes, capacite) Materiel[]
+        -retirerMoinsUrgents(materiels, capacite_cible) Materiel[]
+        -proposerAlternatives(materiels) Materiel[]
+    }
+
+    class CalculService {
+        +calculerCapaciteUtilisee(materiels) double
+        +calculerTypesUtilises(materiels) Map~Type_Integer~
+        +mettreAJourContraintes(contraintes, types_utilises) Contraintes
+    }
+
+    class KnapsackClassique {
+        +optimiser(materiels, capacite, contraintes) Materiel[]
+        -programmationDynamique(items, capacite) boolean[][]
+        -reconstruireSolution(dp, items) Materiel[]
+    }
+
+    class StrategieComplementaire {
+        +strategieKnapsack(optionnels, contraintes, capacite) Materiel[]
+        -equilibrerTypes(materiels, contraintes) Materiel[]
+    }
+
+    class Materiel {
+        +String id
+        +String nom
+        +TypeMateriel type
+        +double volume
+        +double poids
+        +GradeUrgence gradeUrgence
+        +double valeur
+    }
+
+    class GradeUrgence {
+        <<enumeration>>
+        CRITIQUE_A
+        CRITIQUE_B
+        URGENT_A
+        URGENT_B
+        SAFE
+    }
+
+    class TypeMateriel {
+        <<enumeration>>
+        SCANNABLE
+        CONSOMMABLE
+        DECLARABLE
+    }
+
+    KnapsackAvecContraintesCriticite --> FilterService
+    KnapsackAvecContraintesCriticite --> VerificationService
+    KnapsackAvecContraintesCriticite --> AjustementService
+    KnapsackAvecContraintesCriticite --> CalculService
+    KnapsackAvecContraintesCriticite --> KnapsackClassique
+    KnapsackAvecContraintesCriticite --> StrategieComplementaire
+
+    FilterService ..> Materiel
+    VerificationService ..> Materiel
+    AjustementService ..> Materiel
+    CalculService ..> Materiel
+    KnapsackClassique ..> Materiel
+    StrategieComplementaire ..> Materiel
+
+    Materiel --> GradeUrgence
+    Materiel --> TypeMateriel
+```
+
+### Diagramme d'Activité
+
+```mermaid
+flowchart TD
+    Start([Début]) --> Input[Recevoir materiels_classes, contraintes_types, capacite]
+
+    Input --> Filter1[Filtrer matériels obligatoires<br/>CRITIQUE_A, CRITIQUE_B, URGENT_A]
+    Filter1 --> Filter2[Filtrer matériels optionnels<br/>URGENT_B]
+
+    Filter2 --> Verify{Obligatoires<br/>faisables ?}
+
+    Verify -->|Non| Adjust[Ajustement automatique]
+    Adjust --> Return1[Retourner sélection ajustée]
+    Return1 --> End1([Fin])
+
+    Verify -->|Oui| Include[Inclure tous les obligatoires]
+    Include --> CalcCap[Calculer capacité utilisée]
+    CalcCap --> CalcTypes[Calculer types utilisés]
+    CalcTypes --> CalcRemain[Calculer capacité restante]
+
+    CalcRemain --> CheckSpace{Capacité restante > 0<br/>ET optionnels disponibles ?}
+
+    CheckSpace -->|Oui| UpdateConstraints[Mettre à jour contraintes restantes]
+    UpdateConstraints --> Knapsack[Appliquer Knapsack classique sur optionnels]
+    Knapsack --> Merge[Fusionner sélection obligatoire + optionnelle]
+    Merge --> Return2[Retourner sélection finale]
+
+    CheckSpace -->|Non| CheckFallback{Aucun obligatoire<br/>ET optionnels disponibles ?}
+    CheckFallback -->|Oui| Strategy[Stratégie complémentaire Knapsack]
+    Strategy --> Return2
+    CheckFallback -->|Non| Return2
+
+    Return2 --> End2([Fin])
+```
+
+### Diagramme de Séquence Détaillé avec Interactions
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant KN as KnapsackAvecContraintes<br/>Criticite
+    participant FS as FilterService
+    participant VS as VerificationService
+    participant CS as CalculService
+    participant KC as KnapsackClassique
+    participant AS as AjustementService
+
+    Client->>KN: optimiser(materiels, contraintes, capacite)
+
+    KN->>FS: filtrerMaterielsObligatoires(materiels)
+    FS-->>KN: obligatoires[]
+
+    KN->>FS: filtrerMaterielsOptionnels(materiels)
+    FS-->>KN: optionnels[]
+
+    KN->>VS: verifierFaisabilite(obligatoires, contraintes, capacite)
+    VS->>VS: calculerVolumeTotal(obligatoires)
+    VS->>VS: verifierContraintesTypes(obligatoires, contraintes)
+    VS-->>KN: faisable: boolean
+
+    alt faisable == true
+        KN->>CS: calculerCapaciteUtilisee(obligatoires)
+        CS-->>KN: capacite_utilisee
+
+        KN->>CS: calculerTypesUtilises(obligatoires)
+        CS-->>KN: types_utilises
+
+        KN->>CS: mettreAJourContraintes(contraintes, types_utilises)
+        CS-->>KN: contraintes_restantes
+
+        alt capacite_restante > 0
+            KN->>KC: optimiser(optionnels, capacite_restante, contraintes_restantes)
+            KC->>KC: programmationDynamique(optionnels, capacite_restante)
+            KC->>KC: reconstruireSolution()
+            KC-->>KN: selection_optionnelle[]
+
+            KN->>KN: fusionner(obligatoires, selection_optionnelle)
+        end
+    else faisable == false
+        KN->>AS: ajustementAutomatique(obligatoires, contraintes, capacite)
+        AS-->>KN: selection_ajustee[]
+    end
+
+    KN-->>Client: selection_finale[]
+```
+
+### Diagramme d'États de l'Optimisation
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Initialisation
+    [*] --> InitialState
 
-    Initialisation --> Phase1_Obligatoires : Filtrer articles critiques
+    InitialState --> Filtrage : Recevoir paramètres
+    Filtrage --> VerificationFaisabilite : Matériels séparés
 
-    Phase1_Obligatoires --> Traitement_Article_Oblig : Articles CRIT_A/CRIT_B/URG_A
-    Traitement_Article_Oblig --> Creation_Carton : Quantité restante > 0
-    Creation_Carton --> Remplissage_Par_Type : Nouveau carton créé
-    Remplissage_Par_Type --> Traitement_Article_Oblig : Quantité restante > 0
-    Remplissage_Par_Type --> Article_Oblig_Complete : Quantité restante = 0
-    Article_Oblig_Complete --> Traitement_Article_Oblig : Articles restants
-    Article_Oblig_Complete --> Phase2_UrgentsB : Tous articles obligatoires traités
+    VerificationFaisabilite --> AjustementAutomatique : Non faisable
+    VerificationFaisabilite --> InclusionObligatoires : Faisable
 
-    Phase2_UrgentsB --> Traitement_UrgentB : Articles URGENT_B
-    Traitement_UrgentB --> Completion_Cartons : Essayer compléter existants
-    Completion_Cartons --> Verification_Capacite : Pour chaque carton
-    Verification_Capacite --> Ajout_Possible : Capacité disponible
-    Verification_Capacite --> Carton_Suivant : Pas de capacité
-    Ajout_Possible --> Article_Ajoute : Quantité ajoutée
-    Article_Ajoute --> Verification_Complete : Vérifier si complet
-    Verification_Complete --> UrgentB_Complete : Quantité restante = 0
-    Verification_Complete --> Carton_Suivant : Quantité restante > 0
-    Carton_Suivant --> Creation_Nouveau_Carton : Plus de cartons + quantité restante
-    Carton_Suivant --> Completion_Cartons : Carton suivant disponible
-    Creation_Nouveau_Carton --> Remplissage_Par_Type
-    UrgentB_Complete --> Traitement_UrgentB : Articles URGENT_B restants
-    UrgentB_Complete --> Evaluation_Contexte : Tous URGENT_B traités
+    AjustementAutomatique --> [*] : Sélection ajustée
 
-    Evaluation_Contexte --> Strategie_Speciale : Uniquement URGENT_B
-    Evaluation_Contexte --> Strategie_Standard : Articles mixtes
+    InclusionObligatoires --> CalculCapacite : Obligatoires inclus
+    CalculCapacite --> EvaluationOptionnels : Capacité calculée
 
-    Strategie_Speciale --> Identification_Valorisation : Articles valorisation J10
-    Identification_Valorisation --> Tri_Par_Valeur : Articles identifiés
-    Tri_Par_Valeur --> Optimisation_J10 : Tri décroissant
-    Optimisation_J10 --> Calcul_Quantite_Optimale : Pour chaque carton/article
-    Calcul_Quantite_Optimale --> Ajout_Valorisation : Quantité optimale calculée
-    Ajout_Valorisation --> Optimisation_J10 : Articles valorisation restants
-    Ajout_Valorisation --> Phase4_Optimisation : Valorisation terminée
+    EvaluationOptionnels --> OptimisationKnapsack : Espace disponible + optionnels
+    EvaluationOptionnels --> StrategieComplementaire : Aucun obligatoire + optionnels
+    EvaluationOptionnels --> Finalisation : Pas d'espace/optionnels
 
-    Strategie_Standard --> Filtrage_Safe : Articles SAFE
-    Filtrage_Safe --> Remplissage_Opportuniste : Exclusion articles traités
-    Remplissage_Opportuniste --> Verification_Type_Safe : Pour chaque carton/article
-    Verification_Type_Safe --> Ajout_Safe : Type compatible
-    Verification_Type_Safe --> Article_Safe_Suivant : Type incompatible
-    Ajout_Safe --> Article_Safe_Suivant : Ajout effectué
-    Article_Safe_Suivant --> Remplissage_Opportuniste : Articles SAFE restants
-    Article_Safe_Suivant --> Phase4_Optimisation : Tous SAFE traités
+    OptimisationKnapsack --> Fusion : Sélection optionnelle
+    Fusion --> Finalisation : Sélections fusionnées
 
-    Phase4_Optimisation --> Repartition_Colis : Optimiser cartons en colis
-    Repartition_Colis --> Validation_Contraintes : Répartition optimisée
-    Validation_Contraintes --> Validation_Type : Pour chaque carton
-    Validation_Type --> Validation_Contraintes : Carton suivant
-    Validation_Type --> [*] : Validation terminée
+    StrategieComplementaire --> Finalisation : Sélection alternative
 
-    note right of Strategie_Speciale : Valorisation pour atteindre (min+max)/2 en J10
-    note right of Strategie_Standard : Remplissage opportuniste des espaces libres
-    note right of Phase4_Optimisation : Optimisation finale contraintes par type uniquement
+    Finalisation --> [*] : Sélection finale
+
+    note right of AjustementAutomatique : Gestion des cas où les matériels obligatoires excèdent la capacité
+
+    note right of OptimisationKnapsack : Algorithme 0/1 Knapsack classique sur l'espace restant
 ```
 
-## Explication Détaillée du Diagramme d'États
+#### Explication Détaillée du Diagramme d'États
 
-### **État Initialisation**
-- **Déclencheur** : Invocation de l'algorithme avec liste_articles
-- **Actions internes** :
-  - Initialisation des structures : `cartons ← []`, `colis ← []`, `articles_traités ← []`
-  - Validation des paramètres d'entrée
-  - Préparation des filtres de criticité
+Le diagramme d'états modélise le cycle de vie complet de l'algorithme d'optimisation Knapsack avec contraintes de criticité. Chaque état représente une phase distincte du traitement, avec des transitions conditionnelles basées sur les résultats des calculs précédents.
+
+##### **État Initial** → **InitialState**
+- **Déclencheur** : Invocation de l'algorithme par un client externe
+- **Conditions d'entrée** : Réception des paramètres d'entrée (materiels_classes, contraintes_types, capacite)
+- **Actions internes** : Validation des paramètres d'entrée, initialisation des structures de données
 - **Invariants** :
-  - `liste_articles != null && !liste_articles.isEmpty()`
-  - Toutes les listes internes sont vides
-- **Transition** : Vers Phase1_Obligatoires avec structures initialisées
+  - `materiels_classes != null && !materiels_classes.isEmpty()`
+  - `capacite > 0`
+  - `contraintes_types != null`
+- **Transition automatique** : Vers l'état Filtrage dès validation réussie
 
-### **État Phase1_Obligatoires** (Traitement Prioritaire)
-- **Objectif critique** : Garantir l'inclusion de tous les articles critiques sans exception
-- **Filtrage** : `FiltrerParCriticite(liste_articles, ["CRIT_A", "CRIT_B", "URG_A"])`
-- **Principe fondamental** : La criticité prime sur l'efficacité d'espace
-- **Invariant de phase** : Aucun article critique ne peut être ignoré
-- **Transition** : Vers Traitement_Article_Oblig avec liste filtrée
+##### **État Filtrage**
+- **Responsabilité** : Séparation des matériels par niveau de criticité
+- **Actions exécutées** :
+  - Parcours de `materiels_classes` et application des filtres
+  - Construction de `obligatoires[]` = {CRITIQUE_A, CRITIQUE_B, URGENT_A}
+  - Construction de `optionnels[]` = {URGENT_B}
+  - Exclusion implicite des matériels SAFE (non traités)
+- **Données produites** :
+  - Liste des matériels obligatoires avec leurs métadonnées (volume, poids, contraintes)
+  - Liste des matériels optionnels avec leurs ratios valeur/poids
+- **Conditions de sortie** : Filtrage terminé avec au moins une liste non vide
+- **Transition** : Vers VerificationFaisabilite avec les listes constituées
 
-### **État Traitement_Article_Oblig**
-- **Logique itérative** : Traitement séquentiel de chaque article obligatoire
-- **Variable d'état** : `quantite_restante ← article.quantite_besoin`
-- **Condition de boucle** : `TANT QUE quantite_restante > 0`
-- **Garantie de complétude** : Chaque article obligatoire sera entièrement traité
-- **Transitions multiples** :
-  - Si `quantite_restante > 0` → Creation_Carton
-  - Si `quantite_restante = 0` → Article_Oblig_Complete
+##### **État VerificationFaisabilite**
+- **Objectif critique** : Éviter les calculs coûteux sur des configurations impossibles
+- **Algorithme de vérification** :
+  1. **Calcul du volume total obligatoire** : `∑(volume_i) pour i ∈ obligatoires`
+  2. **Calcul du poids total obligatoire** : `∑(poids_i) pour i ∈ obligatoires`
+  3. **Vérification capacité** : `volume_total <= capacite.volume && poids_total <= capacite.poids`
+  4. **Vérification contraintes types** : Pour chaque type T, `count(obligatoires, T) <= contraintes_types[T].limite`
+- **Métriques calculées** :
+  - Taux de remplissage des obligatoires : `volume_obligatoires / capacite_totale`
+  - Violations de contraintes par type
+- **Points de décision** :
+  - **Si faisable** : Les matériels obligatoires peuvent être inclus → InclusionObligatoires
+  - **Si non faisable** : Surcharge détectée → AjustementAutomatique
 
-### **État Creation_Carton**
-- **Action atomique** : `carton ← NouveauCarton()`
-- **Initialisation carton** :
-  - Capacité maximale selon type de carton
-  - Contraintes de compatibilité par type d'article
-  - Métriques de remplissage initialisées à zéro
-- **Transition automatique** : Vers Remplissage_Par_Type
-
-### **État Remplissage_Par_Type**
-- **Algorithme de remplissage** : `RemplirCartonParType(carton, article, quantite_restante)`
-- **Logique de maximisation** :
+##### **État AjustementAutomatique** (Chemin d'Exception)
+- **Contexte critique** : Les matériels obligatoires excèdent la capacité disponible
+- **Stratégies d'ajustement hiérarchisées** :
+  1. **Retrait prioritaire** : Élimination des CRITIQUE_B les moins urgents
+  2. **Fractionnement intelligent** : Division des quantités si matériel divisible
+  3. **Substitution équivalente** : Remplacement par des alternatives plus compactes
+  4. **Escalade manuelle** : Génération d'alertes pour validation humaine
+- **Algorithme de retrait** :
   ```
-  quantite_max_possible = MIN(
-      quantite_restante,
-      carton.capacite_libre / article.volume_unitaire,
-      contraintes_type[article.type].limite_restante
-  )
+  TANT QUE (volume_obligatoires > capacite_disponible) ET (CRITIQUE_B_disponibles)
+      materiel_moins_urgent = MIN(CRITIQUE_B, urgence_totale)
+      RETIRER(materiel_moins_urgent, obligatoires)
+      RECALCULER(volume_obligatoires)
+  FIN_TANT_QUE
   ```
-- **Mise à jour** :
-  - `quantite_ajoutee ← quantite_max_possible`
-  - `cartons.ajouter(carton)`
-  - `quantite_restante ← quantite_restante - quantite_ajoutee`
-- **Transitions conditionnelles** :
-  - Si `quantite_restante > 0` → Traitement_Article_Oblig (nouvelle itération)
-  - Si `quantite_restante = 0` → Article_Oblig_Complete
+- **Données de sortie** : Configuration ajustée avec alertes et justifications
+- **Transition terminale** : Vers [*] avec sélection_ajustée + métadonnées d'ajustement
 
-### **État Article_Oblig_Complete**
-- **Finalisation article** : Ajout à `articles_traités.ajouter(article)`
-- **Vérification de complétude de phase** :
-  - Si articles obligatoires restants → Traitement_Article_Oblig
-  - Si tous traités → Phase2_UrgentsB
-- **Métriques intermédiaires** : Calcul de l'utilisation des cartons après phase 1
-
-### **État Phase2_UrgentsB** (Optimisation Opportuniste)
-- **Stratégie double** : Complétion puis création
-- **Filtrage** : Articles avec grade URGENT_B
-- **Objectif** : Maximiser l'utilisation de l'espace libre des cartons existants
-- **Transition** : Vers Traitement_UrgentB avec liste URGENT_B
-
-### **État Traitement_UrgentB**
-- **Logique similaire** : Traitement séquentiel avec `quantite_restante`
-- **Différence clé** : Tentative de complétion avant création
-- **Transition** : Vers Completion_Cartons
-
-### **État Completion_Cartons**
-- **Parcours séquentiel** : `POUR CHAQUE carton DANS cartons`
-- **Objectif** : Utiliser l'espace libre disponible
-- **Transition** : Vers Verification_Capacite pour chaque carton
-
-### **État Verification_Capacite**
-- **Tests de compatibilité** :
-  1. `carton.PeutAjouterType(article.type)` - Contrainte de type
-  2. `carton.CalculerQuantiteMaxPossible(article)` - Contrainte de capacité
-- **Calculs** :
-  ```
-  quantite_possible = MIN(
-      (carton.capacite_totale - carton.capacite_utilisee) / article.volume,
-      contraintes_type[article.type].limite_carton_restante
-  )
-  ```
-- **Transitions** :
-  - Si `quantite_possible > 0` → Ajout_Possible
-  - Si `quantite_possible = 0` → Carton_Suivant
-
-### **État Ajout_Possible**
-- **Calcul optimal** : `quantite_ajoutee ← MIN(quantite_restante, quantite_possible)`
-- **Action atomique** : `carton.AjouterArticle(article, quantite_ajoutee)`
-- **Mise à jour** : `quantite_restante ← quantite_restante - quantite_ajoutee`
-- **Transition** : Vers Article_Ajoute
-
-### **État Verification_Complete**
-- **Test de complétude** : `quantite_restante = 0 ?`
-- **Transitions conditionnelles** :
-  - Si `quantite_restante = 0` → UrgentB_Complete
-  - Si `quantite_restante > 0` → Carton_Suivant
-
-### **État Carton_Suivant**
-- **Logique de continuation** : Passage au carton suivant pour tentative de complétion
-- **Conditions de sortie** :
-  - Si cartons restants → Completion_Cartons
-  - Si plus de cartons ET `quantite_restante > 0` → Creation_Nouveau_Carton
-
-### **État Creation_Nouveau_Carton**
-- **Action identique** : Création d'un nouveau carton pour quantité non placée
-- **Transition** : Vers Remplissage_Par_Type (réutilisation logique Phase 1)
-
-### **État Evaluation_Contexte** (Point de Divergence Majeur)
-- **Test stratégique** : `SeulementUrgentsB(liste_articles)`
-- **Analyse de composition** : Détermination de la stratégie de Phase 3
-- **Matrice de décision** :
-  | Composition articles | Stratégie | Objectif |
-  |---------------------|-----------|----------|
-  | Uniquement URGENT_B | Spéciale | Valorisation J10 |
-  | Articles mixtes | Standard | Remplissage opportuniste |
-- **Transitions** :
-  - Si uniquement URGENT_B → Strategie_Speciale
-  - Si composition mixte → Strategie_Standard
-
-### **État Strategie_Speciale** (Valorisation J10)
-- **Contexte spécifique** : Optimisation avancée pour scenario URGENT_B pur
-- **Objectif stratégique** : Atteindre `(stock_min + stock_max) / 2` en J10
-- **Transition** : Vers Identification_Valorisation
-
-### **État Identification_Valorisation**
-- **Algorithme de sélection** : `IdentifierArticlesValorisationJ10()`
-- **Critères d'identification** :
-  - Articles avec potentiel de valorisation en J10
-  - Ratio valeur/volume favorable
-  - Compatibilité avec cartons existants
-- **Transition** : Vers Tri_Par_Valeur si articles identifiés
-
-### **État Tri_Par_Valeur**
-- **Algorithme de tri** : `TRIER articles_valorisation PAR valeur DESCENDANT`
-- **Objectif** : Prioriser les articles à plus forte valeur ajoutée
-- **Transition** : Vers Optimisation_J10
-
-### **État Optimisation_J10**
-- **Double boucle imbriquée** :
-  ```
-  POUR CHAQUE carton DANS cartons
-      POUR CHAQUE article DANS articles_valorisation
-  ```
-- **Transition** : Vers Calcul_Quantite_Optimale pour chaque combinaison
-
-### **État Calcul_Quantite_Optimale**
-- **Algorithme spécialisé** : `CalculerQuantiteOptimaleJ10(article)`
-- **Formule d'optimisation** : Équilibrage entre objectif J10 et capacité disponible
-- **Variables** :
-  - `quantite_optimale` : Quantité idéale pour atteindre objectif J10
-  - `quantite_possible` : Quantité maximale compatible avec carton
-  - `quantite_ajoutee` : `MIN(quantite_optimale, quantite_possible)`
-- **Transition** : Vers Ajout_Valorisation
-
-### **État Ajout_Valorisation**
+##### **État InclusionObligatoires** (Chemin Principal)
+- **Garantie algorithmique** : Inclusion forcée et non négociable des matériels critiques
 - **Actions atomiques** :
-  - `carton.AjouterArticle(article, quantite_ajoutee)`
-  - `article.quantite_valorisation ← article.quantite_valorisation - quantite_ajoutee`
-- **Logique de continuation** : Retour vers Optimisation_J10 si articles restants
-- **Condition de sortie** : Vers Phase4_Optimisation si valorisation terminée
+  - Ajout de tous les matériels obligatoires à la sélection finale
+  - Marquage des matériels comme "inclus" pour audit
+  - Validation post-inclusion des contraintes
+- **Structures mises à jour** :
+  - `selection_courante = obligatoires.copy()`
+  - `materiels_inclus_audit = obligatoires.metadata()`
+- **Transition automatique** : Vers CalculCapacite
 
-### **État Strategie_Standard** (Remplissage Opportuniste)
-- **Contexte** : Articles de composition mixte avec présence d'articles SAFE
-- **Transition** : Vers Filtrage_Safe
-
-### **État Filtrage_Safe**
-- **Filtrage** : `articles_safe ← FiltrerParCriticite(liste_articles, ["SAFE"])`
-- **Exclusion** : `SOUSTRACTION(articles_safe, articles_traités)`
-- **Objectif** : Identifier articles SAFE non encore traités
-- **Transition** : Vers Remplissage_Opportuniste
-
-### **État Remplissage_Opportuniste**
-- **Stratégie conservative** : Utiliser uniquement l'espace libre disponible
-- **Double boucle** :
+##### **État CalculCapacite**
+- **Calculs de consommation des ressources** :
+  - **Capacité utilisée** : `capacite_utilisee = ∑(volume_i + poids_i) pour i ∈ obligatoires`
+  - **Types consommés** : `types_utilises[T] = count(obligatoires, type=T) pour T ∈ TypeMateriel`
+  - **Capacité restante** : `capacite_restante = capacite_totale - capacite_utilisee`
+- **Mise à jour des contraintes** :
   ```
-  POUR CHAQUE carton DANS cartons
-      POUR CHAQUE article DANS articles_safe
+  POUR CHAQUE type T DANS TypeMateriel
+      contraintes_restantes[T] = contraintes_types[T] - types_utilises[T]
+  FIN_POUR
   ```
-- **Principe** : Pas de création de nouveaux cartons pour articles SAFE
-- **Transition** : Vers Verification_Type_Safe
+- **Métriques de performance** :
+  - Taux d'utilisation : `capacite_utilisee / capacite_totale`
+  - Marge disponible par type de matériel
+- **Transition** : Vers EvaluationOptionnels avec les capacités mises à jour
 
-### **État Verification_Type_Safe**
-- **Test de compatibilité** : `carton.PeutAjouterType(article.type)`
-- **Calcul de capacité** : `quantite_possible ← carton.CalculerQuantiteMaxPossible(article)`
-- **Transitions** :
-  - Si compatible ET `quantite_possible > 0` → Ajout_Safe
-  - Sinon → Article_Safe_Suivant
+##### **État EvaluationOptionnels** (Point de Divergence Majeur)
+- **Rôle stratégique** : Détermination de la stratégie d'optimisation selon le contexte
+- **Analyse des conditions** :
+  1. **Condition A** : `capacite_restante > 0 && !optionnels.isEmpty()`
+  2. **Condition B** : `obligatoires.isEmpty() && !optionnels.isEmpty()`
+  3. **Condition C** : `capacite_restante <= 0 || optionnels.isEmpty()`
 
-### **État Ajout_Safe**
-- **Action simple** : `carton.AjouterArticle(article, quantite_possible)`
-- **Principe** : Ajout de toute la quantité possible (pas de gestion de quantité restante)
-- **Transition** : Vers Article_Safe_Suivant
+- **Matrice de décision** :
+  | Obligatoires | Optionnels | Capacité restante | Transition |
+  |--------------|------------|------------------|------------|
+  | ✓ | ✓ | > 0 | OptimisationKnapsack |
+  | ✗ | ✓ | > 0 | StrategieComplementaire |
+  | ✓/✗ | ✗ | * | Finalisation |
+  | ✓ | ✓ | ≤ 0 | Finalisation |
 
-### **État Article_Safe_Suivant**
-- **Logique de continuation** : Passage à l'article SAFE suivant
-- **Conditions** :
-  - Si articles SAFE restants → Remplissage_Opportuniste
-  - Si tous traités → Phase4_Optimisation
+- **Transitions multiples possibles** selon évaluation contextuelle
 
-### **État Phase4_Optimisation** (Convergence Finale)
-- **Objectif** : Optimisation de la répartition des cartons en colis
-- **Transition** : Vers Repartition_Colis
+##### **État OptimisationKnapsack** (Cœur Algorithmique)
+- **Algorithme sous-jacent** : 0/1 Knapsack avec programmation dynamique
+- **Complexité** : O(n×W) où n = |optionnels|, W = capacite_restante
+- **Fonction d'optimisation** : Maximiser `∑(valeur_i × x_i)` sous contraintes
+- **Contraintes multiples** :
+  - Volume : `∑(volume_i × x_i) ≤ capacite_restante.volume`
+  - Poids : `∑(poids_i × x_i) ≤ capacite_restante.poids`
+  - Types : `∑(x_i | type_i = T) ≤ contraintes_restantes[T]` ∀T
+- **Variables de décision** : `x_i ∈ {0,1}` pour chaque matériel optionnel i
+- **Table de programmation dynamique** : `dp[i][w]` = valeur optimale avec les i premiers objets et capacité w
+- **Reconstruction de solution** : Backtracking depuis `dp[n][W]`
+- **Transition** : Vers Fusion avec selection_optionnelle optimisée
 
-### **État Repartition_Colis**
-- **Algorithme d'optimisation** : `OptimiserRepartitionCartonsEnColis(cartons)`
-- **Objectifs multiples** :
-  - Minimiser le nombre de colis
-  - Respecter les contraintes de poids/volume des colis
-  - Optimiser les coûts de transport
-- **Algorithmes possibles** :
-  - First Fit Decreasing (FFD)
-  - Best Fit Decreasing (BFD)
-  - Next Fit (NF)
-- **Transition** : Vers Validation_Contraintes
+##### **État StrategieComplementaire** (Stratégie Alternative)
+- **Contexte d'activation** : Aucun matériel obligatoire, optimisation pure sur URGENT_B
+- **Objectifs stratégiques** :
+  - Maximiser la couverture opérationnelle
+  - Équilibrer les types de matériels
+  - Optimiser le rapport valeur/volume global
+- **Algorithme spécialisé** :
+  1. **Phase 1** : Sélection goulue par ratio valeur/poids décroissant
+  2. **Phase 2** : Équilibrage par type pour éviter la monopolisation
+  3. **Phase 3** : Optimisation fine par échange local (Local Search)
+- **Métriques d'équilibrage** :
+  - Distribution par type : `ratio[T] = count(selection, T) / count(optionnels, T)`
+  - Écart-type des ratios pour mesurer l'équilibre
+- **Transition** : Vers Finalisation avec selection_complementaire
 
-### **État Validation_Contraintes**
-- **Validation finale** : Contrôle de toutes les contraintes par type
-- **Transition** : Vers Validation_Type pour chaque carton
+##### **État Fusion**
+- **Opération atomique** : Combinaison des sélections obligatoire et optionnelle
+- **Validations post-fusion** :
+  - Vérification de non-dépassement des capacités totales
+  - Contrôle de cohérence des contraintes de types
+  - Audit de traçabilité (obligatoires vs. optionnels)
+- **Structure de données finale** :
+  ```
+  selection_finale = {
+      obligatoires: [...],
+      optionnels: [...],
+      metadata: {
+          capacite_utilisee_totale,
+          types_distribues,
+          valeur_totale,
+          efficacite_remplissage
+      }
+  }
+  ```
+- **Transition** : Vers Finalisation avec sélection fusionnée
 
-### **État Validation_Type**
-- **Fonction de validation** : `ValiderContraintesParType(carton)`
-- **Contrôles effectués** :
-  - Respect des limites par type d'article
-  - Compatibilité des articles dans le même carton
-  - Contraintes de volume/poids globales
-- **Actions en cas d'échec** : Génération d'alertes et corrections automatiques
-- **Transitions** :
-  - Si cartons restants → Validation_Contraintes
-  - Si tous validés → [*] (fin avec succès)
+##### **État Finalisation** (Convergence Finale)
+- **Consolidation des résultats** : Préparation du livrable final pour le client
+- **Calculs de métriques finales** :
+  - **Taux de remplissage** : `capacite_utilisee / capacite_totale`
+  - **Distribution par criticité** : Nombre de matériels par grade d'urgence
+  - **Valeur totale optimisée** : Somme des valeurs des matériels sélectionnés
+  - **Efficacité d'optimisation** : Ratio valeur obtenue / valeur théorique maximale
+- **Rapports et logs** :
+  - Journal des décisions prises
+  - Alertes et recommandations
+  - Métriques de performance algorithmique
+- **Transition terminale** : Vers [*] avec selection_finale complète
 
-## Invariants du Système d'États
+#### Invariants du Système d'États
 
-### Invariants Globaux
-- **IG1** : `∑(quantites_traitees) ≤ ∑(quantites_demandees)` (pas de sur-allocation)
-- **IG2** : Tous les articles CRIT_A, CRIT_B, URG_A sont entièrement traités
-- **IG3** : `cartons.size() >= 0` (nombre de cartons toujours valide)
-- **IG4** : Chaque carton respecte ses contraintes de type internes
+##### Invariants Globaux (Maintenues dans tous les états)
+- **I1** : `materiels_total = |obligatoires| + |optionnels| + |exclus|`
+- **I2** : `capacite_utilisee ≤ capacite_totale` (jamais de dépassement après ajustement)
+- **I3** : `selection_courante ⊆ materiels_input` (pas de création de matériels)
 
-### Invariants de Phase
-- **IP1** : En Phase 1, aucun article non-critique n'est traité
-- **IP2** : En Phase 2, les cartons existants sont prioritaires sur la création
-- **IP3** : En Phase 3, aucun nouveau carton n'est créé (sauf stratégie spéciale)
-- **IP4** : En Phase 4, la structure des cartons est figée
+##### Invariants de Transition
+- **IT1** : Les matériels obligatoires ne sont jamais retirés après InclusionObligatoires
+- **IT2** : La capacité restante est monotone décroissante
+- **IT3** : Chaque transition produit un progrès mesurable vers la solution finale
 
-### Invariants de Transition
-- **IT1** : `quantite_restante` est monotone décroissante dans chaque boucle de traitement
-- **IT2** : Le nombre d'articles traités est monotone croissant
-- **IT3** : La capacité libre des cartons est monotone décroissante
+#### Conditions d'Exception et Gestion d'Erreurs
 
-## Conditions d'Exception et Gestion d'Erreurs
+##### États d'Exception
+- **OutOfMemoryState** : Si la table de programmation dynamique dépasse la mémoire disponible
+- **TimeoutState** : Si l'optimisation dépasse le timeout configuré
+- **CorruptDataState** : Si les données d'entrée sont incohérentes
 
-### États d'Exception
-- **CartonOverflowState** : Tentative de dépassement de capacité carton
-- **TypeIncompatibilityState** : Tentative d'ajout d'article incompatible
-- **OptimizationFailureState** : Échec de l'optimisation en Phase 4
+##### Stratégies de Récupération
+- **Dégradation gracieuse** : Passage à des algorithmes approchés en cas de contraintes strictes
+- **Checkpointing** : Sauvegarde des états intermédiaires pour reprise possible
+- **Logging détaillé** : Traçabilité complète pour debugging post-mortem
 
-### Stratégies de Récupération
-- **Correction automatique** : Réajustement des quantités en cas de dépassement
-- **Fallback algorithms** : Algorithmes de secours si optimisation échoue
-- **Alerting system** : Notifications pour interventions manuelles requises
+Cette modélisation par états permet une compréhension fine de l'algorithme et facilite sa maintenance, son testing et son extension future.
 
-### Métriques de Performance
-- **Taux de remplissage moyen** : `∑(capacite_utilisee) / ∑(capacite_totale)`
-- **Efficacité de complétion** : Ratio articles traités / articles demandés
-- **Nombre de cartons optimaux** : Comparaison avec borne théorique inférieure
+## Patterns de Conception Utilisés
 
-Cette modélisation d'états fournit une compréhension complète de l'algorithme KnapsackModifieParCriticite, facilitant son implémentation, son debugging et ses évolutions futures.
+### 1. Strategy Pattern
+Les différentes stratégies d'optimisation (KnapsackClassique, StrategieComplementaire) implémentent une interface commune permettant de changer d'algorithme selon le contexte.
+
+### 2. Template Method Pattern
+L'orchestrateur principal suit un template fixe (filtrage → vérification → inclusion → optimisation) avec des variations selon les cas.
+
+### 3. Chain of Responsibility Pattern
+Les services de vérification et d'ajustement forment une chaîne de traitement des cas d'exception.
+
+### 4. Factory Pattern
+La création des structures `MaterielAvecUrgence` est centralisée via des méthodes factory.
+
+## Métriques de Performance
+
+### Complexité Spatiale Détaillée
+- **Stockage matériels** : O(n) où n = nombre de matériels
+- **Table programmation dynamique** : O(m×W) où m = matériels optionnels, W = capacité restante
+- **Structures intermédiaires** : O(n) pour les listes de filtrage
+
+### Complexité Temporelle par Phase
+1. **Filtrage** : O(n) - parcours linéaire
+2. **Vérification** : O(n) - calcul volume total
+3. **Inclusion** : O(1) - assignation directe
+4. **Optimisation** : O(m×W) - programmation dynamique
+5. **Fusion** : O(n) - concaténation listes
+
+### Optimisations Possibles
+- **Cache des calculs** : Mémorisation des résultats de vérification
+- **Parallélisation** : Traitement concurrent des matériels optionnels
+- **Approximation** : Algorithmes gloutons pour réduire la complexité
+
+## Intégration Système
+
+L'algorithme s'intègre dans le flux global de réapprovisionnement :
+1. **Entrée** : Matériels classifiés par le module d'évaluation d'urgence
+2. **Traitement** : Optimisation knapsack avec contraintes de criticité
+3. **Sortie** : Composition de colis optimisée pour validation
+
+Cette approche garantit une cohérence end-to-end du processus de réapprovisionnement automatique.
