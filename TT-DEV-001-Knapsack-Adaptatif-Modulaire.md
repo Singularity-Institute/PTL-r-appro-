@@ -409,7 +409,7 @@ flowchart TD
     C --> D[📊 Calculer capacite_restante = 1.0 - occupation_actuelle]
     D --> E[🔍 Filtrer articles_candidats par capacite_restante]
 
-    E --> F[📈 Initialiser TableDP[n][W]]
+    E --> F[📈 Initialiser TableDP n x W]
     F --> G{🔄 Pour i = 1 à n articles}
 
     G --> H{🔄 Pour w = 0 à capacite_restante}
@@ -427,7 +427,7 @@ flowchart TD
     O -->|Non| P{🔄 i suivant ?}
 
     P -->|Oui| G
-    P -->|Non| Q[🔄 ReconstruireSolution depuis dp[n][W]]
+    P -->|Non| Q[🔄 ReconstruireSolution depuis dp n W]
 
     Q --> R[📦 AppliquerSolution au carton]
     R --> S{🔄 Carton suivant ?}
@@ -554,9 +554,6 @@ flowchart TD
     style T fill:#99ccff
     style S fill:#ffcc99
     style W fill:#99ff99
-
-    note right of R : Point critique de décision<br/>selon règles métier
-    note right of T : RG-005 : Accepter partiel<br/>si plus de cartons disponibles
 ```
 
 ### Matrices de Décision - Stratégies par Cas d'Usage
