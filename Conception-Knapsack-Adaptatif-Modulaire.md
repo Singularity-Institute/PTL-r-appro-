@@ -132,9 +132,8 @@ DEBUT
         SELF.gestionnaire_suivant ← gestionnaire_suivant
     FIN
 FIN
-```
+
 // Gestionnaire pour phase critique
-```
 CLASSE GestionnairePhaseCritique HERITE DE GestionnairePhaseEmballage
 DEBUT
     // Fonction : Traite les articles critiques avec garantie d'inclusion
@@ -155,9 +154,8 @@ DEBUT
         FIN_SI
     FIN
 FIN
-```
+
 // Gestionnaire pour phase Urgent B
-```
 CLASSE GestionnairePhaseUrgentB HERITE DE GestionnairePhaseEmballage
 DEBUT
     // Fonction : Optimise le placement des articles URGENT_B
@@ -178,9 +176,8 @@ DEBUT
         FIN_SI
     FIN
 FIN
-```
+
 // Gestionnaire pour phase Safe
-```
 CLASSE GestionnairePhaseSafe HERITE DE GestionnairePhaseEmballage
 DEBUT
     // Fonction : Applique l'optimisation knapsack aux articles SAFE
@@ -456,7 +453,7 @@ DEBUT
     FIN
 FIN
 ```
-
+```
 
 ### 2. ServiceClassificationArticle
 
@@ -817,7 +814,7 @@ DEBUT
     FIN
 FIN
 ```
-
+```
 
 ## Algorithmes Principaux
 
@@ -1210,105 +1207,131 @@ FIN
 
 ## Diagrammes de Séquence
 
-### Diagramme de Séquence Principal
+### Diagramme de Séquence Fonctionnel Principal
 
 ```mermaid
 sequenceDiagram
-    participant Client
-    participant PMaster as PackingMasterAlgorithm
-    participant ClassifS as ArticleClassificationService
-    participant OccupS as OccupationCalculatorService
-    participant StratS as PackingStrategyService
-    participant KnapS as KnapsackOptimizationService
-    participant StockS as StockProjectionService
+    participant Demandeur as 🏢 Demandeur Colis
+    participant Orchestrateur as 🎯 Orchestrateur Emballage
+    participant TrieurArticles as 📊 Trieur Articles par Criticité
+    participant CalculateurEspace as 📐 Calculateur Espace Cartons
+    participant GestionnaireStrategies as 🔄 Gestionnaire Stratégies
+    participant OptimiseurStock as 📈 Optimiseur Valorisation Stock
+    participant AnalyseurProjections as 🔮 Analyseur Projections Stock
 
-    Client->>PMaster: optimiserColis(PackingContext)
+    Demandeur->>Orchestrateur: 📋 Demander optimisation colis (articles, contraintes, objectifs)
 
-    PMaster->>ClassifS: filtrerParGrade(articles, [CRITIQUE_A, CRITIQUE_B, URGENT_A])
-    ClassifS-->>PMaster: articlesCritiques[]
+    Note over Orchestrateur: 🏁 Phase 1 - Classification des besoins
 
-    PMaster->>ClassifS: filtrerParGrade(articles, [URGENT_B])
-    ClassifS-->>PMaster: articlesUrgentB[]
+    Orchestrateur->>TrieurArticles: 🚨 Identifier articles critiques (CRITIQUE_A, CRITIQUE_B, URGENT_A)
+    TrieurArticles-->>Orchestrateur: 📋 Liste articles critiques prioritaires
 
-    PMaster->>ClassifS: filtrerParGrade(articles, [SAFE])
-    ClassifS-->>PMaster: articlesSafe[]
+    Orchestrateur->>TrieurArticles: ⚡ Identifier articles modérément urgents (URGENT_B)
+    TrieurArticles-->>Orchestrateur: 📋 Liste articles urgents secondaires
 
-    alt Articles critiques présents
-        PMaster->>OccupS: calculerTauxOccupationGlobal(articlesCritiques, coefficients)
-        OccupS-->>PMaster: tauxOccupationTotal
+    Orchestrateur->>TrieurArticles: ✅ Identifier articles non-critiques (SAFE)
+    TrieurArticles-->>Orchestrateur: 📋 Liste articles optimisables
 
-        PMaster->>OccupS: calculerNombreCartonsNecessaires(articlesCritiques, coefficients)
-        OccupS-->>PMaster: nombreCartons
+    alt 🚨 Articles critiques détectés
+        Note over Orchestrateur: 📦 Phase 2 - Garantie inclusion articles critiques
 
-        PMaster->>PMaster: traiterArticlesCritiques()
-        Note over PMaster: Création cartons + distribution articles critiques
+        Orchestrateur->>CalculateurEspace: 📏 Calculer espace total requis (articles critiques)
+        CalculateurEspace-->>Orchestrateur: 📊 Taux occupation global nécessaire
 
-        alt Urgent B disponibles ET espace restant
-            PMaster->>StratS: executerStrategie(PHASE_URGENT_B)
-            StratS->>OccupS: peutAjouter(carton, article, quantite)
-            OccupS-->>StratS: boolean
-            StratS-->>PMaster: PackingResult
+        Orchestrateur->>CalculateurEspace: 📦 Déterminer nombre cartons minimum
+        CalculateurEspace-->>Orchestrateur: 🔢 Nombre cartons à créer (arrondi sup)
 
-            alt Articles Safe disponibles ET espace restant
-                PMaster->>StockS: identifierArticlesValorisationStock(articlesSafe, searchDepth)
-                StockS-->>PMaster: candidatsValorisationStock[]
+        Orchestrateur->>Orchestrateur: 🏗️ Créer cartons et placer articles critiques
+        Note over Orchestrateur: ✅ Garantie : Tous les critiques sont placés
 
-                PMaster->>KnapS: knapsackMultiContraintes(candidats, contraintes, objectiveFunction)
-                KnapS->>KnapS: programmationDynamiqueMultiDim()
-                KnapS->>KnapS: reconstruireSolution()
-                KnapS-->>PMaster: KnapsackResult
+        alt ⚡ Articles urgents B disponibles ET espace restant
+            Note over Orchestrateur: 🔧 Phase 3 - Optimisation complémentaire
 
-                PMaster->>PMaster: integrerResultatKnapsack()
+            Orchestrateur->>GestionnaireStrategies: 🎯 Appliquer stratégie complétion Urgent B
+            GestionnaireStrategies->>CalculateurEspace: ❓ Vérifier compatibilité ajout
+            CalculateurEspace-->>GestionnaireStrategies: ✅/❌ Faisabilité placement
+            GestionnaireStrategies-->>Orchestrateur: 📊 Résultat complétion Urgent B
+
+            alt ✅ Articles Safe disponibles ET espace encore disponible
+                Note over Orchestrateur: 🎯 Phase 4 - Valorisation stock
+
+                Orchestrateur->>AnalyseurProjections: 🔍 Identifier candidats valorisation stock
+                AnalyseurProjections-->>Orchestrateur: 📈 Articles à potentiel valorisation
+
+                Orchestrateur->>OptimiseurStock: 🧮 Optimiser sélection pour objectif (min+max)/2
+                OptimiseurStock->>OptimiseurStock: 🔬 Analyser projections futures
+                OptimiseurStock->>OptimiseurStock: 🎯 Reconstruire solution optimale
+                OptimiseurStock-->>Orchestrateur: 📊 Sélection optimisée valorisation
+
+                Orchestrateur->>Orchestrateur: 🔗 Intégrer résultats valorisation
             end
         end
-    else Uniquement Urgent B
-        PMaster->>StratS: executerStrategie(PHASE_URGENT_B_ONLY)
-        StratS->>KnapS: optimiserAvecContraintes(articlesUrgentB, cartons, objective)
-        KnapS-->>StratS: KnapsackResult
-        StratS-->>PMaster: PackingResult
+    else ⚡ Uniquement articles Urgent B
+        Note over Orchestrateur: 🎯 Phase spéciale - Stratégie Urgent B exclusif
+
+        Orchestrateur->>GestionnaireStrategies: 🚀 Appliquer stratégie spéciale Urgent B
+        GestionnaireStrategies->>OptimiseurStock: 🧮 Optimiser avec contraintes Urgent B
+        OptimiseurStock-->>GestionnaireStrategies: 📊 Solution optimisée Urgent B
+        GestionnaireStrategies-->>Orchestrateur: 📋 Résultat stratégie spéciale
     end
 
-    PMaster->>PMaster: finaliserEtValider()
-    PMaster-->>Client: PackingResult
+    Note over Orchestrateur: 🏁 Phase finale - Consolidation et validation
+
+    Orchestrateur->>Orchestrateur: ✅ Finaliser et valider solution globale
+    Orchestrateur-->>Demandeur: 🎉 Colis optimisé avec métriques de performance
 ```
 
-### Diagramme de Séquence Knapsack Multi-Contraintes
+### Diagramme de Séquence Fonctionnel - Optimisation Multi-Contraintes
 
 ```mermaid
 sequenceDiagram
-    participant KnapS as KnapsackOptimizationService
-    participant DP as MultiDimensionalArray
-    participant ObjF as ObjectiveFunction
-    participant Validator as ContraintValidator
+    participant OptimiseurStock as 🧮 Optimiseur Valorisation Stock
+    participant TableauDecision as 📊 Tableau Décisions Multi-Dimensionnel
+    participant EvaluateurValeur as 💰 Évaluateur Valeur Articles
+    participant ValidateurContraintes as ✅ Validateur Contraintes
 
-    KnapS->>KnapS: discretiserContraintes(contraintes)
-    KnapS->>DP: new MultiDimensionalArray(n+1, contraintesDiscretes)
+    Note over OptimiseurStock: 🎯 Démarrage optimisation knapsack multi-contraintes
 
-    loop Pour chaque article i
-        loop Pour chaque état possible
-            KnapS->>DP: get(i-1, etat) // Option ne pas prendre
-            Note over KnapS: valeurSansPrendre
+    OptimiseurStock->>OptimiseurStock: 🔧 Préparer contraintes discrètes (cartons, types, capacités)
+    OptimiseurStock->>TableauDecision: 🏗️ Initialiser tableau décisions (articles × états possibles)
 
-            KnapS->>Validator: peutPrendreArticle(article, etat, contraintes)
-            Validator-->>KnapS: boolean
+    Note over OptimiseurStock: 🔄 Boucle principale : évaluation de chaque article
 
-            alt Article peut être pris
-                KnapS->>ObjF: calculerValeur(article)
-                ObjF-->>KnapS: valeurArticle
+    loop 📋 Pour chaque article à évaluer
+        loop 🌟 Pour chaque état de contraintes possible
 
-                KnapS->>KnapS: calculerNouvelEtat(article, etat)
-                KnapS->>DP: get(i-1, nouvelEtat)
-                Note over KnapS: valeurAvecPrendre = valeurArticle + valeurPrecedente
+            Note over OptimiseurStock: 🤔 Option 1 - Ne pas inclure cet article
+            OptimiseurStock->>TableauDecision: 📖 Consulter valeur précédente sans article
+            TableauDecision-->>OptimiseurStock: 💲 Valeur optimale sans inclusion
 
-                KnapS->>DP: set(i, etat, max(valeurSansPrendre, valeurAvecPrendre))
-            else
-                KnapS->>DP: set(i, etat, valeurSansPrendre)
+            Note over OptimiseurStock: 🎯 Option 2 - Inclure cet article si possible
+            OptimiseurStock->>ValidateurContraintes: ❓ Peut-on ajouter cet article dans cet état ?
+            ValidateurContraintes->>ValidateurContraintes: 🔍 Vérifier contraintes espace/types
+            ValidateurContraintes-->>OptimiseurStock: ✅/❌ Faisabilité d'inclusion
+
+            alt ✅ Article peut être inclus
+                OptimiseurStock->>EvaluateurValeur: 💰 Calculer valeur article (fonction objectif)
+                Note over EvaluateurValeur: 📈 Évalue selon objectif valorisation stock<br/>(min+max)/2
+                EvaluateurValeur-->>OptimiseurStock: 💎 Valeur ajustée article
+
+                OptimiseurStock->>OptimiseurStock: 🔄 Calculer nouvel état après inclusion
+                OptimiseurStock->>TableauDecision: 📖 Consulter valeur précédente + article
+                TableauDecision-->>OptimiseurStock: 💲 Valeur totale avec inclusion
+
+                Note over OptimiseurStock: ⚖️ Décision : Inclure ou pas selon valeur maximale
+                OptimiseurStock->>TableauDecision: 💾 Mémoriser meilleure décision
+            else ❌ Article ne peut pas être inclus
+                OptimiseurStock->>TableauDecision: 💾 Conserver valeur sans article
             end
         end
     end
 
-    KnapS->>KnapS: reconstruireSolution(dp, articles, contraintes)
-    Note over KnapS: Backtracking pour trouver articles sélectionnés
+    Note over OptimiseurStock: 🔍 Phase finale - Reconstruction solution optimale
+
+    OptimiseurStock->>OptimiseurStock: 🎯 Reconstituer sélection optimale (backtracking)
+    Note over OptimiseurStock: 🔙 Remonte le tableau pour identifier<br/>les articles sélectionnés
+
+    Note over OptimiseurStock: ✅ Solution optimale trouvée !
 ```
 
 ## Diagramme d'États
