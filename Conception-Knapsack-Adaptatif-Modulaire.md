@@ -453,7 +453,7 @@ DEBUT
     FIN
 FIN
 ```
-```
+
 
 ### 2. ServiceClassificationArticle
 
@@ -813,7 +813,6 @@ DEBUT
         RETOURNER strategies_applicables
     FIN
 FIN
-```
 ```
 
 ## Algorithmes Principaux
