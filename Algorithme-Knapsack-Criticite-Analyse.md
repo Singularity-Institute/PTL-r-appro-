@@ -363,6 +363,197 @@ stateDiagram-v2
     note right of OptimisationKnapsack : Algorithme 0/1 Knapsack classique sur l'espace restant
 ```
 
+#### Explication Détaillée du Diagramme d'États
+
+Le diagramme d'états modélise le cycle de vie complet de l'algorithme d'optimisation Knapsack avec contraintes de criticité. Chaque état représente une phase distincte du traitement, avec des transitions conditionnelles basées sur les résultats des calculs précédents.
+
+##### **État Initial** → **InitialState**
+- **Déclencheur** : Invocation de l'algorithme par un client externe
+- **Conditions d'entrée** : Réception des paramètres d'entrée (materiels_classes, contraintes_types, capacite)
+- **Actions internes** : Validation des paramètres d'entrée, initialisation des structures de données
+- **Invariants** :
+  - `materiels_classes != null && !materiels_classes.isEmpty()`
+  - `capacite > 0`
+  - `contraintes_types != null`
+- **Transition automatique** : Vers l'état Filtrage dès validation réussie
+
+##### **État Filtrage**
+- **Responsabilité** : Séparation des matériels par niveau de criticité
+- **Actions exécutées** :
+  - Parcours de `materiels_classes` et application des filtres
+  - Construction de `obligatoires[]` = {CRITIQUE_A, CRITIQUE_B, URGENT_A}
+  - Construction de `optionnels[]` = {URGENT_B}
+  - Exclusion implicite des matériels SAFE (non traités)
+- **Données produites** :
+  - Liste des matériels obligatoires avec leurs métadonnées (volume, poids, contraintes)
+  - Liste des matériels optionnels avec leurs ratios valeur/poids
+- **Conditions de sortie** : Filtrage terminé avec au moins une liste non vide
+- **Transition** : Vers VerificationFaisabilite avec les listes constituées
+
+##### **État VerificationFaisabilite**
+- **Objectif critique** : Éviter les calculs coûteux sur des configurations impossibles
+- **Algorithme de vérification** :
+  1. **Calcul du volume total obligatoire** : `∑(volume_i) pour i ∈ obligatoires`
+  2. **Calcul du poids total obligatoire** : `∑(poids_i) pour i ∈ obligatoires`
+  3. **Vérification capacité** : `volume_total <= capacite.volume && poids_total <= capacite.poids`
+  4. **Vérification contraintes types** : Pour chaque type T, `count(obligatoires, T) <= contraintes_types[T].limite`
+- **Métriques calculées** :
+  - Taux de remplissage des obligatoires : `volume_obligatoires / capacite_totale`
+  - Violations de contraintes par type
+- **Points de décision** :
+  - **Si faisable** : Les matériels obligatoires peuvent être inclus → InclusionObligatoires
+  - **Si non faisable** : Surcharge détectée → AjustementAutomatique
+
+##### **État AjustementAutomatique** (Chemin d'Exception)
+- **Contexte critique** : Les matériels obligatoires excèdent la capacité disponible
+- **Stratégies d'ajustement hiérarchisées** :
+  1. **Retrait prioritaire** : Élimination des CRITIQUE_B les moins urgents
+  2. **Fractionnement intelligent** : Division des quantités si matériel divisible
+  3. **Substitution équivalente** : Remplacement par des alternatives plus compactes
+  4. **Escalade manuelle** : Génération d'alertes pour validation humaine
+- **Algorithme de retrait** :
+  ```
+  TANT QUE (volume_obligatoires > capacite_disponible) ET (CRITIQUE_B_disponibles)
+      materiel_moins_urgent = MIN(CRITIQUE_B, urgence_totale)
+      RETIRER(materiel_moins_urgent, obligatoires)
+      RECALCULER(volume_obligatoires)
+  FIN_TANT_QUE
+  ```
+- **Données de sortie** : Configuration ajustée avec alertes et justifications
+- **Transition terminale** : Vers [*] avec sélection_ajustée + métadonnées d'ajustement
+
+##### **État InclusionObligatoires** (Chemin Principal)
+- **Garantie algorithmique** : Inclusion forcée et non négociable des matériels critiques
+- **Actions atomiques** :
+  - Ajout de tous les matériels obligatoires à la sélection finale
+  - Marquage des matériels comme "inclus" pour audit
+  - Validation post-inclusion des contraintes
+- **Structures mises à jour** :
+  - `selection_courante = obligatoires.copy()`
+  - `materiels_inclus_audit = obligatoires.metadata()`
+- **Transition automatique** : Vers CalculCapacite
+
+##### **État CalculCapacite**
+- **Calculs de consommation des ressources** :
+  - **Capacité utilisée** : `capacite_utilisee = ∑(volume_i + poids_i) pour i ∈ obligatoires`
+  - **Types consommés** : `types_utilises[T] = count(obligatoires, type=T) pour T ∈ TypeMateriel`
+  - **Capacité restante** : `capacite_restante = capacite_totale - capacite_utilisee`
+- **Mise à jour des contraintes** :
+  ```
+  POUR CHAQUE type T DANS TypeMateriel
+      contraintes_restantes[T] = contraintes_types[T] - types_utilises[T]
+  FIN_POUR
+  ```
+- **Métriques de performance** :
+  - Taux d'utilisation : `capacite_utilisee / capacite_totale`
+  - Marge disponible par type de matériel
+- **Transition** : Vers EvaluationOptionnels avec les capacités mises à jour
+
+##### **État EvaluationOptionnels** (Point de Divergence Majeur)
+- **Rôle stratégique** : Détermination de la stratégie d'optimisation selon le contexte
+- **Analyse des conditions** :
+  1. **Condition A** : `capacite_restante > 0 && !optionnels.isEmpty()`
+  2. **Condition B** : `obligatoires.isEmpty() && !optionnels.isEmpty()`
+  3. **Condition C** : `capacite_restante <= 0 || optionnels.isEmpty()`
+
+- **Matrice de décision** :
+  | Obligatoires | Optionnels | Capacité restante | Transition |
+  |--------------|------------|------------------|------------|
+  | ✓ | ✓ | > 0 | OptimisationKnapsack |
+  | ✗ | ✓ | > 0 | StrategieComplementaire |
+  | ✓/✗ | ✗ | * | Finalisation |
+  | ✓ | ✓ | ≤ 0 | Finalisation |
+
+- **Transitions multiples possibles** selon évaluation contextuelle
+
+##### **État OptimisationKnapsack** (Cœur Algorithmique)
+- **Algorithme sous-jacent** : 0/1 Knapsack avec programmation dynamique
+- **Complexité** : O(n×W) où n = |optionnels|, W = capacite_restante
+- **Fonction d'optimisation** : Maximiser `∑(valeur_i × x_i)` sous contraintes
+- **Contraintes multiples** :
+  - Volume : `∑(volume_i × x_i) ≤ capacite_restante.volume`
+  - Poids : `∑(poids_i × x_i) ≤ capacite_restante.poids`
+  - Types : `∑(x_i | type_i = T) ≤ contraintes_restantes[T]` ∀T
+- **Variables de décision** : `x_i ∈ {0,1}` pour chaque matériel optionnel i
+- **Table de programmation dynamique** : `dp[i][w]` = valeur optimale avec les i premiers objets et capacité w
+- **Reconstruction de solution** : Backtracking depuis `dp[n][W]`
+- **Transition** : Vers Fusion avec selection_optionnelle optimisée
+
+##### **État StrategieComplementaire** (Stratégie Alternative)
+- **Contexte d'activation** : Aucun matériel obligatoire, optimisation pure sur URGENT_B
+- **Objectifs stratégiques** :
+  - Maximiser la couverture opérationnelle
+  - Équilibrer les types de matériels
+  - Optimiser le rapport valeur/volume global
+- **Algorithme spécialisé** :
+  1. **Phase 1** : Sélection goulue par ratio valeur/poids décroissant
+  2. **Phase 2** : Équilibrage par type pour éviter la monopolisation
+  3. **Phase 3** : Optimisation fine par échange local (Local Search)
+- **Métriques d'équilibrage** :
+  - Distribution par type : `ratio[T] = count(selection, T) / count(optionnels, T)`
+  - Écart-type des ratios pour mesurer l'équilibre
+- **Transition** : Vers Finalisation avec selection_complementaire
+
+##### **État Fusion**
+- **Opération atomique** : Combinaison des sélections obligatoire et optionnelle
+- **Validations post-fusion** :
+  - Vérification de non-dépassement des capacités totales
+  - Contrôle de cohérence des contraintes de types
+  - Audit de traçabilité (obligatoires vs. optionnels)
+- **Structure de données finale** :
+  ```
+  selection_finale = {
+      obligatoires: [...],
+      optionnels: [...],
+      metadata: {
+          capacite_utilisee_totale,
+          types_distribues,
+          valeur_totale,
+          efficacite_remplissage
+      }
+  }
+  ```
+- **Transition** : Vers Finalisation avec sélection fusionnée
+
+##### **État Finalisation** (Convergence Finale)
+- **Consolidation des résultats** : Préparation du livrable final pour le client
+- **Calculs de métriques finales** :
+  - **Taux de remplissage** : `capacite_utilisee / capacite_totale`
+  - **Distribution par criticité** : Nombre de matériels par grade d'urgence
+  - **Valeur totale optimisée** : Somme des valeurs des matériels sélectionnés
+  - **Efficacité d'optimisation** : Ratio valeur obtenue / valeur théorique maximale
+- **Rapports et logs** :
+  - Journal des décisions prises
+  - Alertes et recommandations
+  - Métriques de performance algorithmique
+- **Transition terminale** : Vers [*] avec selection_finale complète
+
+#### Invariants du Système d'États
+
+##### Invariants Globaux (Maintenues dans tous les états)
+- **I1** : `materiels_total = |obligatoires| + |optionnels| + |exclus|`
+- **I2** : `capacite_utilisee ≤ capacite_totale` (jamais de dépassement après ajustement)
+- **I3** : `selection_courante ⊆ materiels_input` (pas de création de matériels)
+
+##### Invariants de Transition
+- **IT1** : Les matériels obligatoires ne sont jamais retirés après InclusionObligatoires
+- **IT2** : La capacité restante est monotone décroissante
+- **IT3** : Chaque transition produit un progrès mesurable vers la solution finale
+
+#### Conditions d'Exception et Gestion d'Erreurs
+
+##### États d'Exception
+- **OutOfMemoryState** : Si la table de programmation dynamique dépasse la mémoire disponible
+- **TimeoutState** : Si l'optimisation dépasse le timeout configuré
+- **CorruptDataState** : Si les données d'entrée sont incohérentes
+
+##### Stratégies de Récupération
+- **Dégradation gracieuse** : Passage à des algorithmes approchés en cas de contraintes strictes
+- **Checkpointing** : Sauvegarde des états intermédiaires pour reprise possible
+- **Logging détaillé** : Traçabilité complète pour debugging post-mortem
+
+Cette modélisation par états permet une compréhension fine de l'algorithme et facilite sa maintenance, son testing et son extension future.
+
 ## Patterns de Conception Utilisés
 
 ### 1. Strategy Pattern
