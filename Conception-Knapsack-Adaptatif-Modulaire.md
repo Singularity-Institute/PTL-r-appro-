@@ -1399,6 +1399,70 @@ stateDiagram-v2
     note right of EvaluationFinCartons : Decision critique - Accepter quantite partielle<br/>ou creer nouveau carton selon disponibilite
 ```
 
+### Version Fonctionnelle du Diagramme d'État
+
+```mermaid
+stateDiagram-v2
+    [*] --> 📦_Reception_Commande : Nouvelle demande de colis
+
+    📦_Reception_Commande --> 🔍_Analyse_Criticite : Commande analysée
+
+    🔍_Analyse_Criticite --> 🚨_Traitement_Urgences : Matériels critiques détectés
+    🔍_Analyse_Criticite --> 📋_Optimisation_Stock : Uniquement matériels Safe
+    🔍_Analyse_Criticite --> ⚡_Gestion_Mixte : Matériels critiques + Safe
+
+    🚨_Traitement_Urgences --> 📐_Calcul_Espace_Necessaire : Urgences identifiées
+    📐_Calcul_Espace_Necessaire --> 📦_Creation_Colis_Urgents : Espace calculé
+    📦_Creation_Colis_Urgents --> 📍_Placement_Prioritaire : Colis créés
+    📍_Placement_Prioritaire --> 🔄_Verification_Completion : Matériels urgents placés
+
+    🔄_Verification_Completion --> 📊_Evaluation_Espace_Restant : Urgences traitées
+    🔄_Verification_Completion --> 💡_Gestion_Partielles : Quantités incomplètes
+
+    💡_Gestion_Partielles --> ❓_Decision_Strategie : Analyse options
+    ❓_Decision_Strategie --> 📦_Nouveau_Colis : Créer nouveau colis 📈
+    ❓_Decision_Strategie --> ✅_Accepter_Partiel : Accepter quantité partielle 🎯
+
+    📦_Nouveau_Colis --> 📍_Placement_Prioritaire : Nouveau colis disponible
+    ✅_Accepter_Partiel --> 📊_Evaluation_Espace_Restant : Quantité partielle acceptée
+
+    📊_Evaluation_Espace_Restant --> ⚡_Completion_UrgentB : Espace + matériels URGENT_B
+    📊_Evaluation_Espace_Restant --> 🎯_Valorisation_Stock : Espace + matériels Safe
+    📊_Evaluation_Espace_Restant --> ✅_Finalisation_Colis : Pas d'espace restant
+
+    ⚡_Completion_UrgentB --> 🔍_Recherche_Emplacements : Matériels URGENT_B à placer
+    🔍_Recherche_Emplacements --> ➕_Ajout_UrgentB : Emplacement trouvé
+    🔍_Recherche_Emplacements --> 💡_Gestion_Partielles : Pas d'emplacement
+    ➕_Ajout_UrgentB --> 🔄_Verification_UrgentB : Matériel ajouté
+    🔄_Verification_UrgentB --> 🔍_Recherche_Emplacements : Plus à placer
+    🔄_Verification_UrgentB --> 📊_Bilan_UrgentB : Tous placés
+
+    📊_Bilan_UrgentB --> 🎯_Valorisation_Stock : URGENT_B traité + Safe disponible
+    📊_Bilan_UrgentB --> ✅_Finalisation_Colis : URGENT_B traité + pas de Safe
+
+    🎯_Valorisation_Stock --> 📈_Analyse_Opportunites : Stock Safe analysé
+    📈_Analyse_Opportunites --> 🎯_Definition_Objectifs : Opportunités identifiées
+    🎯_Definition_Objectifs --> ⚖️_Optimisation_Intelligente : Objectifs (min+max)/2 définis
+    ⚖️_Optimisation_Intelligente --> 🧮_Calcul_Optimal : Algorithme d'optimisation
+    🧮_Calcul_Optimal --> 📦_Integration_Safe : Solution optimale trouvée
+    📦_Integration_Safe --> ✅_Finalisation_Colis : Matériels Safe intégrés
+
+    📋_Optimisation_Stock --> 🎯_Valorisation_Stock : Stratégie d'optimisation
+
+    ⚡_Gestion_Mixte --> 🚨_Traitement_Urgences : Priorisation urgences
+
+    ✅_Finalisation_Colis --> ✔️_Validation_Qualite : Colis finalisés
+    ✔️_Validation_Qualite --> 🔍_Controle_Carton : Pour chaque carton
+    🔍_Controle_Carton --> ✔️_Validation_Qualite : Carton suivant
+    🔍_Controle_Carton --> 📊_Generation_Rapport : Tous cartons validés
+    📊_Generation_Rapport --> [*] : 📋 Rapport final généré ✨
+
+    note right of 🚨_Traitement_Urgences : Garantie 100% pour matériels critiques 🚨
+    note right of ⚖️_Optimisation_Intelligente : Stratégie d'optimisation avancée pour stock Safe 🎯
+    note right of ❓_Decision_Strategie : Point de décision métier crucial 💡
+    note right of ✅_Accepter_Partiel : Acceptation intelligente selon contraintes 🎯
+```
+
 ## Stratégies d'Extension
 
 ### 1. Extension Types de Cartons
