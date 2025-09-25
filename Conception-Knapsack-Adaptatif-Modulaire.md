@@ -368,148 +368,389 @@ public enum PackingPhase {
 
 ### Algorithme Principal : PackingMasterAlgorithm
 
-```java
-public class PackingMasterAlgorithm {
+```
+ALGORITHME OptimiserColis(context)
+DEBUT
+    // Phase 1: Initialisation et classification
+    articles_critiques ← FiltrerParGrade(context.articles_input, [CRITIQUE_A, CRITIQUE_B, URGENT_A])
+    articles_urgent_b ← FiltrerParGrade(context.articles_input, [URGENT_B])
+    articles_safe ← FiltrerParGrade(context.articles_input, [SAFE])
 
-    public PackingResult optimiserColis(PackingContext context) {
-        // Phase 1: Initialisation et classification
-        List<Article> articlesCritiques = classificationService
-            .filtrerParGrade(context.getArticlesInput(),
-                Arrays.asList(GradeCriticite.CRITIQUE_A, CRITIQUE_B, URGENT_A));
+    result ← NouveauPackingResult()
 
-        List<Article> articlesUrgentB = classificationService
-            .filtrerParGrade(context.getArticlesInput(),
-                Arrays.asList(GradeCriticite.URGENT_B));
+    // Phase 2: Traitement articles critiques (court-circuit knapsack)
+    SI NON EstVide(articles_critiques) ALORS
+        result ← TraiterArticlesCritiques(articles_critiques, context)
+    FIN_SI
 
-        List<Article> articlesSafe = classificationService
-            .filtrerParGrade(context.getArticlesInput(),
-                Arrays.asList(GradeCriticite.SAFE));
+    // Phase 3: Complétion avec Urgent B
+    SI NON EstVide(articles_urgent_b) ET result.HasSpaceAvailable() ALORS
+        result ← CompleterAvecUrgentB(articles_urgent_b, result, context)
+    FIN_SI
 
-        PackingResult result = new PackingResult();
+    // Phase 4: Optimisation avec articles Safe ou stratégie spéciale
+    SI EstUniquementUrgentB(context.articles_input) ALORS
+        result ← AppliquerStrategieUrgentBSeul(articles_urgent_b, context)
+    SINON_SI NON EstVide(articles_safe) ET result.HasSpaceAvailable() ALORS
+        result ← OptimiserAvecArticlesSafe(articles_safe, result, context)
+    FIN_SI
 
-        // Phase 2: Traitement articles critiques (court-circuit knapsack)
-        if (!articlesCritiques.isEmpty()) {
-            result = traiterArticlesCritiques(articlesCritiques, context);
-        }
+    // Phase 5: Finalisation et validation
+    result ← FinaliserEtValider(result)
 
-        // Phase 3: Complétion avec Urgent B
-        if (!articlesUrgentB.isEmpty() && result.hasSpaceAvailable()) {
-            result = completerAvecUrgentB(articlesUrgentB, result, context);
-        }
-
-        // Phase 4: Optimisation avec articles Safe ou stratégie spéciale
-        if (classificationService.estUniquementUrgentB(context.getArticlesInput())) {
-            result = appliquerStrategieUrgentBSeul(articlesUrgentB, context);
-        } else if (!articlesSafe.isEmpty() && result.hasSpaceAvailable()) {
-            result = optimiserAvecArticlesSafe(articlesSafe, result, context);
-        }
-
-        // Phase 5: Finalisation et validation
-        result = finaliserEtValider(result);
-
-        return result;
-    }
-}
+    RETOURNER result
+FIN
 ```
 
 ### Algorithme Phase Critique
 
-```java
-private PackingResult traiterArticlesCritiques(List<Article> articlesCritiques, PackingContext context) {
-    // Calcul du nombre de cartons nécessaires
-    double tauxOccupationTotal = occupationCalculatorService
-        .calculerTauxOccupationGlobal(articlesCritiques, context.getCoefficientsOccupation());
+```
+ALGORITHME TraiterArticlesCritiques(articles_critiques, context)
+DEBUT
+    // Calcul du taux d'occupation total
+    taux_occupation_total ← 0
+    POUR CHAQUE article DANS articles_critiques FAIRE
+        coefficient ← context.coefficients_occupation[article.type]
+        taux_occupation_total ← taux_occupation_total + (article.quantite_demandee × coefficient)
+    FIN_POUR
 
-    int nombreCartonsNecessaires = (int) Math.ceil(tauxOccupationTotal);
+    // Calcul du nombre de cartons nécessaires
+    nombre_cartons_necessaires ← ARRONDI_SUPERIEUR(taux_occupation_total)
 
     // Création des cartons
-    List<Carton> cartons = new ArrayList<>();
-    for (int i = 0; i < nombreCartonsNecessaires; i++) {
-        cartons.add(context.getCartonFactory().createCarton(
-            CartonType.STANDARD,
-            context.getCoefficientsOccupation()
-        ));
-    }
+    cartons ← []
+    POUR i DE 1 A nombre_cartons_necessaires FAIRE
+        carton ← CreerNouveauCarton(context.coefficients_occupation)
+        AJOUTER carton A cartons
+    FIN_POUR
 
     // Distribution des articles critiques
-    PackingResult result = distribuerArticlesCritiques(articlesCritiques, cartons);
+    result ← DistribuerArticlesCritiques(articles_critiques, cartons)
 
     // Calcul de l'espace restant
-    double tauxRestant = nombreCartonsNecessaires - tauxOccupationTotal;
-    result.setTauxOccupationRestant(tauxRestant);
+    taux_restant ← nombre_cartons_necessaires - taux_occupation_total
+    result.taux_occupation_restant ← taux_restant
 
-    return result;
-}
+    RETOURNER result
+FIN
+```
+
+### Sous-algorithme : Distribution Articles Critiques
+
+```
+ALGORITHME DistribuerArticlesCritiques(articles_critiques, cartons)
+DEBUT
+    result ← NouveauPackingResult()
+    result.cartons ← cartons
+
+    // Tri des articles par priorité décroissante
+    TRIER articles_critiques PAR grade CROISSANT PUIS PAR valeur DECROISSANT
+
+    POUR CHAQUE article DANS articles_critiques FAIRE
+        quantite_restante ← article.quantite_demandee
+
+        TANT QUE quantite_restante > 0 FAIRE
+            carton_choisi ← NULLE
+            meilleure_capacite ← 0
+
+            // Recherche du carton avec la meilleure capacité disponible pour ce type
+            POUR CHAQUE carton DANS cartons FAIRE
+                SI carton.PeutAjouter(article.type) ALORS
+                    capacite_disponible ← carton.CalculerCapaciteDisponible(article.type)
+                    SI capacite_disponible > meilleure_capacite ALORS
+                        carton_choisi ← carton
+                        meilleure_capacite ← capacite_disponible
+                    FIN_SI
+                FIN_SI
+            FIN_POUR
+
+            SI carton_choisi ≠ NULLE ALORS
+                quantite_a_ajouter ← MIN(quantite_restante, meilleure_capacite)
+                carton_choisi.AjouterArticle(article, quantite_a_ajouter)
+                quantite_restante ← quantite_restante - quantite_a_ajouter
+            SINON
+                // Erreur: impossible de placer l'article critique
+                LEVER_EXCEPTION("Article critique ne peut être placé: " + article.id)
+            FIN_SI
+        FIN_TANT_QUE
+    FIN_POUR
+
+    RETOURNER result
+FIN
+```
+
+### Algorithme Complétion Urgent B
+
+```
+ALGORITHME CompleterAvecUrgentB(articles_urgent_b, result_courant, context)
+DEBUT
+    cartons ← result_courant.cartons
+
+    POUR CHAQUE article DANS articles_urgent_b FAIRE
+        quantite_restante ← article.quantite_demandee
+
+        // Phase 1: Tentative de complétion des cartons existants
+        POUR CHAQUE carton DANS cartons FAIRE
+            SI quantite_restante = 0 ALORS
+                SORTIR_BOUCLE
+            FIN_SI
+
+            SI carton.PeutAjouter(article.type) ALORS
+                capacite_disponible ← carton.CalculerCapaciteDisponible(article.type)
+                SI capacite_disponible > 0 ALORS
+                    quantite_a_ajouter ← MIN(quantite_restante, capacite_disponible)
+                    carton.AjouterArticle(article, quantite_a_ajouter)
+                    quantite_restante ← quantite_restante - quantite_a_ajouter
+                FIN_SI
+            FIN_SI
+        FIN_POUR
+
+        // Phase 2: Création de nouveaux cartons si nécessaire
+        TANT QUE quantite_restante > 0 FAIRE
+            nouveau_carton ← CreerNouveauCarton(context.coefficients_occupation)
+            capacite_max ← nouveau_carton.CalculerCapaciteMaximale(article.type)
+            quantite_a_ajouter ← MIN(quantite_restante, capacite_max)
+
+            nouveau_carton.AjouterArticle(article, quantite_a_ajouter)
+            AJOUTER nouveau_carton A cartons
+            quantite_restante ← quantite_restante - quantite_a_ajouter
+        FIN_TANT_QUE
+    FIN_POUR
+
+    result_courant.cartons ← cartons
+    RETOURNER result_courant
+FIN
 ```
 
 ### Algorithme Knapsack pour Articles Safe
 
-```java
-private PackingResult optimiserAvecArticlesSafe(List<Article> articlesSafe, PackingResult resultCourant, PackingContext context) {
+```
+ALGORITHME OptimiserAvecArticlesSafe(articles_safe, result_courant, context)
+DEBUT
     // Identification des articles candidats pour valorisation stock
-    List<Article> candidatsValorisationStock = stockProjectionService
-        .identifierArticlesValorisationStock(articlesSafe, context.getSearchDepth());
+    candidats_valorisation ← IdentifierArticlesValorisationStock(articles_safe, context.search_depth)
 
-    if (candidatsValorisationStock.isEmpty()) {
-        return resultCourant;
-    }
+    SI EstVide(candidats_valorisation) ALORS
+        RETOURNER result_courant
+    FIN_SI
 
-    // Préparation fonction objectif personnalisée
-    ObjectiveFunction objectiveFonction = (article) -> {
-        int objectifStock = stockProjectionService
-            .calculerObjectifStockOptimal(article, context.getSearchDepth());
-        int stockActuel = article.getStockProjections().get(context.getSearchDepth());
+    // Calcul des contraintes restantes pour chaque carton
+    contraintes_par_carton ← []
+    POUR CHAQUE carton DANS result_courant.cartons FAIRE
+        contraintes_carton ← CalculerContraintesRestantes(carton, context.coefficients_occupation)
+        AJOUTER contraintes_carton A contraintes_par_carton
+    FIN_POUR
 
-        // Valeur = intérêt pour atteindre (min+max)/2
-        double ecartOptimal = Math.abs(objectifStock - stockActuel);
-        return article.getValeur() / (1 + ecartOptimal); // Plus l'écart est faible, plus la valeur est élevée
-    };
+    // Préparation de la fonction objectif pour valorisation stock
+    POUR CHAQUE article DANS candidats_valorisation FAIRE
+        objectif_stock ← CalculerObjectifStockOptimal(article, context.search_depth)
+        stock_actuel ← article.stock_projections[context.search_depth]
+        ecart_optimal ← |objectif_stock - stock_actuel|
+        article.valeur_ajustee ← article.valeur / (1 + ecart_optimal)
+    FIN_POUR
 
     // Application knapsack multi-contraintes
-    Map<String, Double> contraintes = calculerContraintesRestantes(resultCourant.getCartons());
-
-    KnapsackResult knapsackResult = knapsackOptimizationService
-        .knapsackMultiContraintes(candidatsValorisationStock, contraintes, objectiveFonction);
+    knapsack_result ← KnapsackMultiContraintes(candidats_valorisation, contraintes_par_carton)
 
     // Intégration du résultat
-    return integrerResultatKnapsack(resultCourant, knapsackResult);
-}
+    RETOURNER IntegrerResultatKnapsack(result_courant, knapsack_result)
+FIN
 ```
 
 ### Algorithme Knapsack Multi-Contraintes
 
-```java
-public KnapsackResult knapsackMultiContraintes(List<Article> items, Map<String, Double> contraintes, ObjectiveFunction fonction) {
-    int n = items.size();
-    Map<String, Integer> contraintesDiscretes = discretiserContraintes(contraintes);
+```
+ALGORITHME KnapsackMultiContraintes(items, contraintes_par_carton)
+DEBUT
+    n ← TAILLE(items)
+    m ← TAILLE(contraintes_par_carton)
+
+    // Discrétisation des contraintes
+    contraintes_discretes ← DiscretiserContraintes(contraintes_par_carton)
 
     // Table de programmation dynamique multi-dimensionnelle
-    // dp[i][c1][c2][...] = valeur optimale avec les i premiers objets et capacités c1, c2, ...
-    MultiDimensionalArray dp = new MultiDimensionalArray(n + 1, contraintesDiscretes);
+    // dp[i][carton][c1][c2][...] = valeur optimale avec les i premiers objets
+    dp ← NouveauTableauMultiDimensionnel(n + 1, contraintes_discretes)
+
+    // Initialisation
+    POUR CHAQUE etat DANS dp[0] FAIRE
+        dp[0][etat] ← 0
+    FIN_POUR
 
     // Remplissage de la table DP
-    for (int i = 1; i <= n; i++) {
-        Article article = items.get(i - 1);
-        double valeur = fonction.calculerValeur(article);
+    POUR i DE 1 A n FAIRE
+        article ← items[i - 1]
+        valeur ← article.valeur_ajustee
 
-        dp.iterateAllStates((state) -> {
-            // Option 1: Ne pas prendre l'article
-            double valeurSansPrendre = dp.get(i - 1, state);
+        POUR CHAQUE carton_index DE 0 A m - 1 FAIRE
+            contraintes_carton ← contraintes_discretes[carton_index]
 
-            // Option 2: Prendre l'article si possible
-            double valeurAvecPrendre = 0;
-            if (peutPrendreArticle(article, state, contraintes)) {
-                Map<String, Integer> nouvelEtat = calculerNouvelEtat(article, state);
-                valeurAvecPrendre = valeur + dp.get(i - 1, nouvelEtat);
-            }
+            POUR CHAQUE etat DANS contraintes_carton FAIRE
+                // Option 1: Ne pas prendre l'article
+                valeur_sans_prendre ← dp[i - 1][carton_index][etat]
 
-            dp.set(i, state, Math.max(valeurSansPrendre, valeurAvecPrendre));
-        });
-    }
+                // Option 2: Prendre l'article dans ce carton si possible
+                valeur_avec_prendre ← 0
+                SI PeutPrendreArticle(article, carton_index, etat, contraintes_carton) ALORS
+                    nouvel_etat ← CalculerNouvelEtat(article, etat)
+                    valeur_avec_prendre ← valeur + dp[i - 1][carton_index][nouvel_etat]
+                FIN_SI
+
+                dp[i][carton_index][etat] ← MAX(valeur_sans_prendre, valeur_avec_prendre)
+            FIN_POUR
+        FIN_POUR
+    FIN_POUR
 
     // Reconstruction de la solution
-    return reconstruireSolution(dp, items, contraintes, fonction);
-}
+    solution ← ReconstruireSolution(dp, items, contraintes_discretes)
+    RETOURNER solution
+FIN
+```
+
+### Algorithme Reconstruction Solution Knapsack
+
+```
+ALGORITHME ReconstruireSolution(dp, items, contraintes_discretes)
+DEBUT
+    n ← TAILLE(items)
+    m ← TAILLE(contraintes_discretes)
+
+    // Trouver la valeur optimale globale
+    valeur_optimale ← 0
+    meilleur_etat ← NULLE
+    meilleur_carton ← -1
+
+    POUR carton_index DE 0 A m - 1 FAIRE
+        POUR CHAQUE etat DANS contraintes_discretes[carton_index] FAIRE
+            SI dp[n][carton_index][etat] > valeur_optimale ALORS
+                valeur_optimale ← dp[n][carton_index][etat]
+                meilleur_etat ← etat
+                meilleur_carton ← carton_index
+            FIN_SI
+        FIN_POUR
+    FIN_POUR
+
+    // Backtracking pour reconstruire la solution
+    solution ← NouveauKnapsackResult()
+    solution.valeur_totale ← valeur_optimale
+    solution.articles_selectionnes ← []
+    solution.repartition_par_carton ← []
+
+    etat_courant ← meilleur_etat
+    carton_courant ← meilleur_carton
+
+    POUR i DE n A 1 PAS -1 FAIRE
+        article ← items[i - 1]
+        valeur_sans_article ← dp[i - 1][carton_courant][etat_courant]
+
+        SI dp[i][carton_courant][etat_courant] ≠ valeur_sans_article ALORS
+            // L'article a été pris
+            AJOUTER article A solution.articles_selectionnes
+            AJOUTER (article, carton_courant) A solution.repartition_par_carton
+
+            // Calculer l'état précédent
+            etat_courant ← CalculerEtatPrecedent(article, etat_courant)
+        FIN_SI
+    FIN_POUR
+
+    RETOURNER solution
+FIN
+```
+
+### Algorithme Stratégie Urgent B Seul
+
+```
+ALGORITHME AppliquerStrategieUrgentBSeul(articles_urgent_b, context)
+DEBUT
+    // Phase 1: Calcul du nombre de cartons nécessaires
+    taux_occupation_total ← 0
+    POUR CHAQUE article DANS articles_urgent_b FAIRE
+        coefficient ← context.coefficients_occupation[article.type]
+        taux_occupation_total ← taux_occupation_total + (article.quantite_demandee × coefficient)
+    FIN_POUR
+
+    nombre_cartons_necessaires ← ARRONDI_SUPERIEUR(taux_occupation_total)
+
+    // Phase 2: Création et remplissage initial des cartons
+    cartons ← []
+    POUR i DE 1 A nombre_cartons_necessaires FAIRE
+        carton ← CreerNouveauCarton(context.coefficients_occupation)
+        AJOUTER carton A cartons
+    FIN_POUR
+
+    result ← DistribuerArticlesCritiques(articles_urgent_b, cartons)
+
+    // Phase 3: Optimisation de l'espace restant avec knapsack classique
+    espace_restant ← nombre_cartons_necessaires - taux_occupation_total
+
+    SI espace_restant > SEUIL_OPTIMISATION ALORS
+        // Tri des articles restants par ratio valeur/occupation
+        articles_restants ← []
+        POUR CHAQUE article DANS articles_urgent_b FAIRE
+            SI article.quantite_restante > 0 ALORS
+                coefficient ← context.coefficients_occupation[article.type]
+                article.ratio_valeur ← article.valeur / coefficient
+                AJOUTER article A articles_restants
+            FIN_SI
+        FIN_POUR
+
+        TRIER articles_restants PAR ratio_valeur DECROISSANT
+
+        // Application knapsack glouton sur l'espace restant
+        POUR CHAQUE article DANS articles_restants FAIRE
+            POUR CHAQUE carton DANS cartons FAIRE
+                capacite_disponible ← carton.CalculerCapaciteDisponible(article.type)
+                SI capacite_disponible > 0 ET article.quantite_restante > 0 ALORS
+                    quantite_optimale ← MIN(article.quantite_restante, capacite_disponible)
+                    carton.AjouterArticle(article, quantite_optimale)
+                    article.quantite_restante ← article.quantite_restante - quantite_optimale
+                FIN_SI
+            FIN_POUR
+        FIN_POUR
+    FIN_SI
+
+    RETOURNER result
+FIN
+```
+
+### Algorithmes Utilitaires
+
+```
+ALGORITHME CalculerObjectifStockOptimal(article, search_depth)
+DEBUT
+    projections ← article.stock_projections
+    stock_min ← MIN(projections[1..search_depth])
+    stock_max ← MAX(projections[1..search_depth])
+    objectif ← (stock_min + stock_max) / 2
+    RETOURNER ARRONDI(objectif)
+FIN
+
+ALGORITHME IdentifierArticlesValorisationStock(articles_safe, search_depth)
+DEBUT
+    candidats ← []
+    POUR CHAQUE article DANS articles_safe FAIRE
+        objectif ← CalculerObjectifStockOptimal(article, search_depth)
+        stock_final ← article.stock_projections[search_depth]
+
+        SI stock_final < objectif ALORS
+            article.interet_valorisation ← objectif - stock_final
+            AJOUTER article A candidats
+        FIN_SI
+    FIN_POUR
+
+    TRIER candidats PAR interet_valorisation DECROISSANT
+    RETOURNER candidats
+FIN
+
+ALGORITHME EstUniquementUrgentB(articles)
+DEBUT
+    POUR CHAQUE article DANS articles FAIRE
+        SI article.grade ≠ URGENT_B ALORS
+            RETOURNER FAUX
+        FIN_SI
+    FIN_POUR
+    RETOURNER VRAI
+FIN
 ```
 
 ## Diagrammes de Séquence
