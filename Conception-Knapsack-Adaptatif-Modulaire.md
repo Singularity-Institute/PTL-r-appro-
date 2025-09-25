@@ -1396,7 +1396,7 @@ stateDiagram-v2
     note right of PhaseCritique : Court-circuit knapsack pour articles critiques
     note right of ExecutionKnapsack : Knapsack multi-contraintes avec objectif (min+max)/2
     note right of StrategieSpeciale : Création + optimisation knapsack classique
-    note right of EvaluationFinCartons : Decision critique : Accepter quantite partielle<br/>ou creer nouveau carton selon disponibilite
+    note right of EvaluationFinCartons : Decision critique - Accepter quantite partielle<br/>ou creer nouveau carton selon disponibilite
 ```
 
 ## Stratégies d'Extension
