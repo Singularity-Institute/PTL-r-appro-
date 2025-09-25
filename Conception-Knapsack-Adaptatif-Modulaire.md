@@ -1360,9 +1360,10 @@ stateDiagram-v2
     CompletionCartons --> VerificationCapacite : Pour chaque carton
     VerificationCapacite --> AjoutUrgentB : Capacité suffisante
     VerificationCapacite --> CartonSuivant : Capacité insuffisante
-    AjoutUrgentB --> VerificationComplete : Article ajouté
-    VerificationComplete --> CartonSuivant : Quantity restante > 0
-    VerificationComplete --> UrgentBComplete : Quantity restante = 0
+    AjoutUrgentB --> EvaluationFinCartons : Article ajouté
+    EvaluationFinCartons --> UrgentBComplete : Quantité restante = 0 OU plus de cartons
+    EvaluationFinCartons --> VerificationComplete : Quantité restante > 0 ET cartons disponibles
+    VerificationComplete --> CartonSuivant : Quantité restante > 0
     CartonSuivant --> CreationNouveauCarton : Plus de cartons + quantité restante
     CartonSuivant --> CompletionCartons : Carton suivant disponible
     CreationNouveauCarton --> DistributionCritiques : Nouveau carton créé
@@ -1395,6 +1396,7 @@ stateDiagram-v2
     note right of PhaseCritique : Court-circuit knapsack pour articles critiques
     note right of ExecutionKnapsack : Knapsack multi-contraintes avec objectif (min+max)/2
     note right of StrategieSpeciale : Création + optimisation knapsack classique
+    note right of EvaluationFinCartons : Décision critique : Accepter quantité partielle<br/>ou créer nouveau carton selon disponibilité
 ```
 
 ## Stratégies d'Extension
