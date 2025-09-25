@@ -36,7 +36,7 @@ DEBUT
     
     RETOURNER selection
 FIN
-``
+```
 
 ## Vue d'ensemble
 
