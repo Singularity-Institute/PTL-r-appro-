@@ -160,219 +160,207 @@ La vérification préalable évite les calculs coûteux sur des configurations n
 
 ### Diagramme de Classes
 
-```plantuml
-@startuml
-class KnapsackAvecContraintesCriticite {
-    +optimiser(materiels_classes, contraintes_types, capacite): Selection[]
-}
+```mermaid
+classDiagram
+    class KnapsackAvecContraintesCriticite {
+        +optimiser(materiels_classes, contraintes_types, capacite) Selection[]
+    }
 
-class FilterService {
-    +filtrerMaterielsObligatoires(materiels): Materiel[]
-    +filtrerMaterielsOptionnels(materiels): Materiel[]
-}
+    class FilterService {
+        +filtrerMaterielsObligatoires(materiels) Materiel[]
+        +filtrerMaterielsOptionnels(materiels) Materiel[]
+    }
 
-class VerificationService {
-    +verifierFaisabilite(obligatoires, contraintes, capacite): boolean
-    -calculerVolumeTotal(materiels): double
-    -verifierContraintesTypes(materiels, contraintes): boolean
-}
+    class VerificationService {
+        +verifierFaisabilite(obligatoires, contraintes, capacite) boolean
+        -calculerVolumeTotal(materiels) double
+        -verifierContraintesTypes(materiels, contraintes) boolean
+    }
 
-class AjustementService {
-    +ajustementAutomatique(obligatoires, contraintes, capacite): Materiel[]
-    -retirerMoinsUrgents(materiels, capacite_cible): Materiel[]
-    -proposerAlternatives(materiels): Materiel[]
-}
+    class AjustementService {
+        +ajustementAutomatique(obligatoires, contraintes, capacite) Materiel[]
+        -retirerMoinsUrgents(materiels, capacite_cible) Materiel[]
+        -proposerAlternatives(materiels) Materiel[]
+    }
 
-class CalculService {
-    +calculerCapaciteUtilisee(materiels): double
-    +calculerTypesUtilises(materiels): Map<Type, Integer>
-    +mettreAJourContraintes(contraintes, types_utilises): Contraintes
-}
+    class CalculService {
+        +calculerCapaciteUtilisee(materiels) double
+        +calculerTypesUtilises(materiels) Map~Type_Integer~
+        +mettreAJourContraintes(contraintes, types_utilises) Contraintes
+    }
 
-class KnapsackClassique {
-    +optimiser(materiels, capacite, contraintes): Materiel[]
-    -programmationDynamique(items, capacite): boolean[][]
-    -reconstruireSolution(dp, items): Materiel[]
-}
+    class KnapsackClassique {
+        +optimiser(materiels, capacite, contraintes) Materiel[]
+        -programmationDynamique(items, capacite) boolean[][]
+        -reconstruireSolution(dp, items) Materiel[]
+    }
 
-class StrategieComplementaire {
-    +strategieKnapsack(optionnels, contraintes, capacite): Materiel[]
-    -equilibrerTypes(materiels, contraintes): Materiel[]
-}
+    class StrategieComplementaire {
+        +strategieKnapsack(optionnels, contraintes, capacite) Materiel[]
+        -equilibrerTypes(materiels, contraintes) Materiel[]
+    }
 
-class Materiel {
-    +id: String
-    +nom: String
-    +type: TypeMateriel
-    +volume: double
-    +poids: double
-    +gradeUrgence: GradeUrgence
-    +valeur: double
-}
+    class Materiel {
+        +String id
+        +String nom
+        +TypeMateriel type
+        +double volume
+        +double poids
+        +GradeUrgence gradeUrgence
+        +double valeur
+    }
 
-enum GradeUrgence {
-    CRITIQUE_A
-    CRITIQUE_B
-    URGENT_A
-    URGENT_B
-    SAFE
-}
+    class GradeUrgence {
+        <<enumeration>>
+        CRITIQUE_A
+        CRITIQUE_B
+        URGENT_A
+        URGENT_B
+        SAFE
+    }
 
-enum TypeMateriel {
-    SCANNABLE
-    CONSOMMABLE
-    DECLARABLE
-}
+    class TypeMateriel {
+        <<enumeration>>
+        SCANNABLE
+        CONSOMMABLE
+        DECLARABLE
+    }
 
-KnapsackAvecContraintesCriticite --> FilterService
-KnapsackAvecContraintesCriticite --> VerificationService
-KnapsackAvecContraintesCriticite --> AjustementService
-KnapsackAvecContraintesCriticite --> CalculService
-KnapsackAvecContraintesCriticite --> KnapsackClassique
-KnapsackAvecContraintesCriticite --> StrategieComplementaire
+    KnapsackAvecContraintesCriticite --> FilterService
+    KnapsackAvecContraintesCriticite --> VerificationService
+    KnapsackAvecContraintesCriticite --> AjustementService
+    KnapsackAvecContraintesCriticite --> CalculService
+    KnapsackAvecContraintesCriticite --> KnapsackClassique
+    KnapsackAvecContraintesCriticite --> StrategieComplementaire
 
-FilterService ..> Materiel
-VerificationService ..> Materiel
-AjustementService ..> Materiel
-CalculService ..> Materiel
-KnapsackClassique ..> Materiel
-StrategieComplementaire ..> Materiel
-@enduml
+    FilterService ..> Materiel
+    VerificationService ..> Materiel
+    AjustementService ..> Materiel
+    CalculService ..> Materiel
+    KnapsackClassique ..> Materiel
+    StrategieComplementaire ..> Materiel
+
+    Materiel --> GradeUrgence
+    Materiel --> TypeMateriel
 ```
 
 ### Diagramme d'Activité
 
-```plantuml
-@startuml
-start
+```mermaid
+flowchart TD
+    Start([Début]) --> Input[Recevoir materiels_classes, contraintes_types, capacite]
 
-:Recevoir materiels_classes, contraintes_types, capacite;
+    Input --> Filter1[Filtrer matériels obligatoires<br/>CRITIQUE_A, CRITIQUE_B, URGENT_A]
+    Filter1 --> Filter2[Filtrer matériels optionnels<br/>URGENT_B]
 
-:Filtrer matériels obligatoires
-(CRITIQUE_A, CRITIQUE_B, URGENT_A);
+    Filter2 --> Verify{Obligatoires<br/>faisables ?}
 
-:Filtrer matériels optionnels
-(URGENT_B);
+    Verify -->|Non| Adjust[Ajustement automatique]
+    Adjust --> Return1[Retourner sélection ajustée]
+    Return1 --> End1([Fin])
 
-:Vérifier faisabilité des obligatoires;
+    Verify -->|Oui| Include[Inclure tous les obligatoires]
+    Include --> CalcCap[Calculer capacité utilisée]
+    CalcCap --> CalcTypes[Calculer types utilisés]
+    CalcTypes --> CalcRemain[Calculer capacité restante]
 
-if (Obligatoires faisables ?) then (Non)
-    :Ajustement automatique;
-    :Retourner sélection ajustée;
-    stop
-else (Oui)
-    :Inclure tous les obligatoires;
+    CalcRemain --> CheckSpace{Capacité restante > 0<br/>ET optionnels disponibles ?}
 
-    :Calculer capacité utilisée;
-    :Calculer types utilisés;
-    :Calculer capacité restante;
+    CheckSpace -->|Oui| UpdateConstraints[Mettre à jour contraintes restantes]
+    UpdateConstraints --> Knapsack[Appliquer Knapsack classique sur optionnels]
+    Knapsack --> Merge[Fusionner sélection obligatoire + optionnelle]
+    Merge --> Return2[Retourner sélection finale]
 
-    if (Capacité restante > 0 ET optionnels disponibles ?) then (Oui)
-        :Mettre à jour contraintes restantes;
-        :Appliquer Knapsack classique sur optionnels;
-        :Fusionner sélection obligatoire + optionnelle;
-    else (Non)
-        if (Aucun obligatoire ET optionnels disponibles ?) then (Oui)
-            :Stratégie complémentaire Knapsack;
-        endif
-    endif
+    CheckSpace -->|Non| CheckFallback{Aucun obligatoire<br/>ET optionnels disponibles ?}
+    CheckFallback -->|Oui| Strategy[Stratégie complémentaire Knapsack]
+    Strategy --> Return2
+    CheckFallback -->|Non| Return2
 
-    :Retourner sélection finale;
-endif
-
-stop
-@enduml
+    Return2 --> End2([Fin])
 ```
 
 ### Diagramme de Séquence Détaillé avec Interactions
 
-```plantuml
-@startuml
-actor Client
-participant "KnapsackAvecContraintes\nCriticite" as KN
-participant "FilterService" as FS
-participant "VerificationService" as VS
-participant "CalculService" as CS
-participant "KnapsackClassique" as KC
+```mermaid
+sequenceDiagram
+    participant Client
+    participant KN as KnapsackAvecContraintes<br/>Criticite
+    participant FS as FilterService
+    participant VS as VerificationService
+    participant CS as CalculService
+    participant KC as KnapsackClassique
+    participant AS as AjustementService
 
-Client -> KN: optimiser(materiels, contraintes, capacite)
+    Client->>KN: optimiser(materiels, contraintes, capacite)
 
-KN -> FS: filtrerMaterielsObligatoires(materiels)
-FS --> KN: obligatoires[]
+    KN->>FS: filtrerMaterielsObligatoires(materiels)
+    FS-->>KN: obligatoires[]
 
-KN -> FS: filtrerMaterielsOptionnels(materiels)
-FS --> KN: optionnels[]
+    KN->>FS: filtrerMaterielsOptionnels(materiels)
+    FS-->>KN: optionnels[]
 
-KN -> VS: verifierFaisabilite(obligatoires, contraintes, capacite)
-VS -> VS: calculerVolumeTotal(obligatoires)
-VS -> VS: verifierContraintesTypes(obligatoires, contraintes)
-VS --> KN: faisable: boolean
+    KN->>VS: verifierFaisabilite(obligatoires, contraintes, capacite)
+    VS->>VS: calculerVolumeTotal(obligatoires)
+    VS->>VS: verifierContraintesTypes(obligatoires, contraintes)
+    VS-->>KN: faisable: boolean
 
-alt faisable == true
-    KN -> CS: calculerCapaciteUtilisee(obligatoires)
-    CS --> KN: capacite_utilisee
+    alt faisable == true
+        KN->>CS: calculerCapaciteUtilisee(obligatoires)
+        CS-->>KN: capacite_utilisee
 
-    KN -> CS: calculerTypesUtilises(obligatoires)
-    CS --> KN: types_utilises
+        KN->>CS: calculerTypesUtilises(obligatoires)
+        CS-->>KN: types_utilises
 
-    KN -> CS: mettreAJourContraintes(contraintes, types_utilises)
-    CS --> KN: contraintes_restantes
+        KN->>CS: mettreAJourContraintes(contraintes, types_utilises)
+        CS-->>KN: contraintes_restantes
 
-    alt capacite_restante > 0
-        KN -> KC: optimiser(optionnels, capacite_restante, contraintes_restantes)
-        KC -> KC: programmationDynamique(optionnels, capacite_restante)
-        KC -> KC: reconstruireSolution()
-        KC --> KN: selection_optionnelle[]
+        alt capacite_restante > 0
+            KN->>KC: optimiser(optionnels, capacite_restante, contraintes_restantes)
+            KC->>KC: programmationDynamique(optionnels, capacite_restante)
+            KC->>KC: reconstruireSolution()
+            KC-->>KN: selection_optionnelle[]
 
-        KN -> KN: fusionner(obligatoires, selection_optionnelle)
+            KN->>KN: fusionner(obligatoires, selection_optionnelle)
+        end
+    else faisable == false
+        KN->>AS: ajustementAutomatique(obligatoires, contraintes, capacite)
+        AS-->>KN: selection_ajustee[]
     end
-else
-    KN -> "AjustementService": ajustementAutomatique(obligatoires, contraintes, capacite)
-    "AjustementService" --> KN: selection_ajustee[]
-end
 
-KN --> Client: selection_finale[]
-@enduml
+    KN-->>Client: selection_finale[]
 ```
 
 ### Diagramme d'États de l'Optimisation
 
-```plantuml
-@startuml
-[*] --> InitialState
+```mermaid
+stateDiagram-v2
+    [*] --> InitialState
 
-InitialState --> Filtrage : Recevoir paramètres
-Filtrage --> VerificationFaisabilite : Matériels séparés
+    InitialState --> Filtrage : Recevoir paramètres
+    Filtrage --> VerificationFaisabilite : Matériels séparés
 
-VerificationFaisabilite --> AjustementAutomatique : Non faisable
-VerificationFaisabilite --> InclusionObligatoires : Faisable
+    VerificationFaisabilite --> AjustementAutomatique : Non faisable
+    VerificationFaisabilite --> InclusionObligatoires : Faisable
 
-AjustementAutomatique --> [*] : Sélection ajustée
+    AjustementAutomatique --> [*] : Sélection ajustée
 
-InclusionObligatoires --> CalculCapacite : Obligatoires inclus
-CalculCapacite --> EvaluationOptionnels : Capacité calculée
+    InclusionObligatoires --> CalculCapacite : Obligatoires inclus
+    CalculCapacite --> EvaluationOptionnels : Capacité calculée
 
-EvaluationOptionnels --> OptimisationKnapsack : Espace disponible + optionnels
-EvaluationOptionnels --> StrategieComplementaire : Aucun obligatoire + optionnels
-EvaluationOptionnels --> Finalisation : Pas d'espace/optionnels
+    EvaluationOptionnels --> OptimisationKnapsack : Espace disponible + optionnels
+    EvaluationOptionnels --> StrategieComplementaire : Aucun obligatoire + optionnels
+    EvaluationOptionnels --> Finalisation : Pas d'espace/optionnels
 
-OptimisationKnapsack --> Fusion : Sélection optionnelle
-Fusion --> Finalisation : Sélections fusionnées
+    OptimisationKnapsack --> Fusion : Sélection optionnelle
+    Fusion --> Finalisation : Sélections fusionnées
 
-StrategieComplementaire --> Finalisation : Sélection alternative
+    StrategieComplementaire --> Finalisation : Sélection alternative
 
-Finalisation --> [*] : Sélection finale
+    Finalisation --> [*] : Sélection finale
 
-note right of AjustementAutomatique
-  Gestion des cas où les matériels
-  obligatoires excèdent la capacité
-end note
+    note right of AjustementAutomatique : Gestion des cas où les matériels obligatoires excèdent la capacité
 
-note right of OptimisationKnapsack
-  Algorithme 0/1 Knapsack classique
-  sur l'espace restant
-end note
-@enduml
+    note right of OptimisationKnapsack : Algorithme 0/1 Knapsack classique sur l'espace restant
 ```
 
 ## Patterns de Conception Utilisés
