@@ -132,8 +132,9 @@ DEBUT
         SELF.gestionnaire_suivant ← gestionnaire_suivant
     FIN
 FIN
-
+```
 // Gestionnaire pour phase critique
+```
 CLASSE GestionnairePhaseCritique HERITE DE GestionnairePhaseEmballage
 DEBUT
     // Fonction : Traite les articles critiques avec garantie d'inclusion
@@ -154,8 +155,9 @@ DEBUT
         FIN_SI
     FIN
 FIN
-
+```
 // Gestionnaire pour phase Urgent B
+```
 CLASSE GestionnairePhaseUrgentB HERITE DE GestionnairePhaseEmballage
 DEBUT
     // Fonction : Optimise le placement des articles URGENT_B
@@ -176,8 +178,9 @@ DEBUT
         FIN_SI
     FIN
 FIN
-
+```
 // Gestionnaire pour phase Safe
+```
 CLASSE GestionnairePhaseSafe HERITE DE GestionnairePhaseEmballage
 DEBUT
     // Fonction : Applique l'optimisation knapsack aux articles SAFE
