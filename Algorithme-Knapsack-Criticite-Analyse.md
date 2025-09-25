@@ -1,5 +1,43 @@
 # Analyse de l'Algorithme Knapsack avec Contraintes de Criticité
 
+
+### **Algorithme Knapsack Contraint**
+
+```pseudocode
+FONCTION KnapsackAvecContraintesCriticite(materiels_classes, contraintes_types, capacite)
+DEBUT
+    // 1. Séparation par priorité basée sur classification d'urgence
+    obligatoires = FILTRER(materiels_classes, grade IN [CRITIQUE_A, CRITIQUE_B, URGENT_A])
+    optionnels = FILTRER(materiels_classes, grade = URGENT_B)
+    
+    // 2. Vérification faisabilité obligatoires
+    SI NON VerifierFaisabilite(obligatoires, contraintes_types, capacite) ALORS
+        RETOURNER AjustementAutomatique(obligatoires, contraintes_types, capacite)
+    FIN_SI
+    
+    // 3. Inclusion forcée des matériels critiques et urgents A
+    selection = obligatoires
+    capacite_utilisee = CalculerCapaciteUtilisee(obligatoires)
+    types_utilises = CalculerTypesUtilises(obligatoires)
+    
+    // 4. Optimisation avec matériels optionnels (Urgent B)
+    capacite_restante = capacite - capacite_utilisee
+    contraintes_restantes = MiseAJourContraintes(contraintes_types, types_utilises)
+    
+    SI capacite_restante > 0 ET TAILLE(optionnels) > 0 ALORS
+        selection_optionnelle = KnapsackClassique(optionnels, capacite_restante, contraintes_restantes)
+        selection = FUSIONNER(selection, selection_optionnelle)
+    FIN_SI
+    
+    // 5. Stratégie complémentaire si seulement Urgent B
+    SI TAILLE(obligatoires) = 0 ET TAILLE(optionnels) > 0 ALORS
+        selection = StrategieComplementaireKnapsack(optionnels, contraintes_types, capacite)
+    FIN_SI
+    
+    RETOURNER selection
+FIN
+``
+
 ## Vue d'ensemble
 
 L'algorithme `KnapsackAvecContraintesCriticite` est une adaptation sophistiquée du problème classique du sac à dos (knapsack) qui intègre la notion de criticité des matériels pour optimiser la composition des colis de réapprovisionnement. Contrairement au knapsack classique qui maximise simplement la valeur sous contrainte de capacité, cet algorithme priorise les matériels selon leur niveau d'urgence opérationnelle.
