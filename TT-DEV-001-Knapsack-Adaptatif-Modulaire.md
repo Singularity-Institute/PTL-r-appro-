@@ -59,7 +59,12 @@ CAPACITE_CARTON = 1.0 (100%)
 **Règle :** Si aucun carton avec capacité disponible, accepter quantité partielle
 **Action :** Passer à la finalisation sans créer nouveau carton
 
-### RG-006 : Validation des Contraintes Finales
+### RG-006 : Discrétisation pour Algorithme Knapsack
+**Règle :** Discrétiser les capacités continues avec précision 0.01 pour l'algorithme knapsack
+**Justification :** Transformer le problème knapsack continu en problème discret solvable par programmation dynamique
+**Implémentation :** `capacite_discretisee = ARRONDI(capacite_continue × 100)`
+
+### RG-007 : Validation des Contraintes Finales
 **Contrôles :** Occupation ≤ 100%, articles critiques à 100%, cohérence données
 
 ---
@@ -128,7 +133,7 @@ Then Phase 1: Articles CRITIQUE_A/B/URGENT_A traités en court-circuit
   And Phase 4: Validation et génération du rapport final
 ```
 
-### CA-007 : Gestion des Cas Limites
+### CA-007 : Gestion des Cas Limites et Performance
 ```gherkin
 Given une liste d'articles avec quantités très importantes
   And coefficients d'occupation générant des besoins > 1000 cartons
@@ -136,6 +141,12 @@ When j'exécute l'algorithme d'optimisation des colis
 Then l'algorithme gère les gros volumes sans dégradation de performance
   And le temps d'exécution reste < 10 secondes pour 10000 articles
   And la mémoire utilisée reste raisonnable (< 1GB)
+
+Given un knapsack avec 1000 articles SAFE candidats et capacité restante très fractionnée
+When j'exécute l'optimisation knapsack avec discrétisation 0.01
+Then le temps d'exécution reste < 5 secondes
+  And la table DP n'excède pas 100MB de mémoire
+  And la solution trouvée est à moins de 5% de l'optimal théorique
 ```
 
 ### CA-008 : Cas Articles Uniquement SAFE
@@ -165,6 +176,17 @@ When j'exécute l'algorithme d'optimisation des colis
 Then l'algorithme génère des erreurs de validation appropriées
   And aucun traitement n'est effectué sur des données corrompues
   And les messages d'erreur sont explicites et exploitables
+
+Given une liste d'articles avec des coefficients d'occupation > 1.0
+When j'exécute l'algorithme d'optimisation des colis
+Then une exception "ArticleOccupationInvalidException" est levée
+  And le message indique "Article {id} avec coefficient {coeff} > 1.0 impossible"
+
+Given des articles SAFE sans projections de stock valides
+When j'exécute l'algorithme d'optimisation des colis
+Then les articles SAFE sont ignorés de l'optimisation knapsack
+  And un warning est généré dans les logs
+  And le rapport final indique les articles ignorés
 ```
 
 ---
@@ -600,12 +622,13 @@ flowchart TD
 |----------|------|-------------|-------------------|-------------|
 | `articles_safe` | List\<Article\> | Articles SAFE à optimiser | 0 à N articles | Entrée principale |
 | `cartons_disponibles` | List\<Carton\> | Cartons avec espace restant | 1 à N cartons | Conteneurs à optimiser |
-| `capacite_restante` | double | Espace disponible dans carton | 0.0 à 1.0 | Contrainte knapsack |
+| `capacite_restante` | double | Espace disponible dans carton | 0.0 à 1.0 | Contrainte knapsack continue |
+| `capacite_discretisee` | int | Capacité discrétisée (×100) | 0 à 100 | Contrainte knapsack discrète |
 | `articles_candidats` | List\<Article\> | Articles qui peuvent entrer dans carton | 0 à M articles | Filtrage par capacité |
 | `dp` | double\[\]\[\] | Table programmation dynamique | dp\[n\]\[W\] | Mémorisation solutions |
 | `i` | int | Index article courant | 1 à n | Boucle articles |
-| `w` | int | Capacité courante considérée | 0 à W | Boucle capacités |
-| `cout_occupation` | double | Occupation requise par article | quantité × coefficient | Contrainte espace |
+| `w` | int | Capacité discrète courante | 0 à capacite_discretisee | Boucle capacités DP |
+| `cout_occupation_discret` | int | Occupation discrétisée | quantité × coefficient × 100 | Contrainte espace discrète |
 | `valeur_stock` | double | Valeur valorisation stock | (min+max)/2 - stock_final | Fonction objectif |
 | `solution_optimale` | List\<Article\> | Articles sélectionnés par knapsack | 0 à M articles | Résultat optimisation |
 
