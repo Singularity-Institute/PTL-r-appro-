@@ -440,7 +440,7 @@ FIN
 | `ReconstruireSolution(dp, articles, W)` | `dp[][], articles_candidats, capacite_discretisee` | `solution: List<Article>` | Backtracking depuis dp[n][W] | Extraction articles optimaux de la table DP | Solution respecte contraintes |
 | `AppliquerSolution(carton, solution)` | `carton, solution: List<Article>` | Carton mis à jour | Placement effectif articles | Application physique résultat knapsack sur carton | Nouvelle occupation ≤ 1.0 |
 | **Variables Globales DP** | - | - | `dp[][], capacite_discretisee, articles_candidats` | État partagé algorithme knapsack | Cohérence table DP |
-```
+
 
 ---
 
