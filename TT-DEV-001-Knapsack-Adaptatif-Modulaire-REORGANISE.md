@@ -270,7 +270,7 @@ public class Carton {
 | `finaliser()` | `est_finalise = true` | Verrouillage carton contre modifications ultérieures | - | Phase 4 - Finalisation |
 ```
 
----
+
 
 ## 🔄 6. ALGORITHMES DÉTAILLÉS
 
