@@ -311,11 +311,11 @@ FIN
 | `OptimiserAvecSafe(cartons, articles)` | `cartons_resultats, articles_safe` | `cartons_resultats: List<Carton>` | `dp[][], solution_optimale` | Phase 3: Knapsack multi-contraintes avec objectif (min+max)/2 | Solution optimale respectant contraintes |
 | `ValiderEtGenererRapport(cartons)` | `cartons_resultats: List<Carton>` | `PackingResult` | `metriques, warnings, validation` | Phase 4: Contrôles finaux et génération rapport complet | Toutes validations passées |
 | **Variables Globales** | `context: OptimisationContext` | `PackingResult` | `articles_critiques, articles_urgent_b, articles_safe, cartons_resultats` | État partagé entre phases pour cohérence traitement | Cohérence données inter-phases |
-```
+
 
 ### Algorithme Court-Circuit (Phase 1)
 
-```java
+```
 ALGORITHME TraiterArticlesCritiques(articles_critiques)
 DEBUT
     occupation_totale ← CalculerOccupationRequise(articles_critiques)
@@ -346,7 +346,7 @@ FIN
 | **Boucle POUR article** | `distribution[carton.index]` | - | `article: Article` | Itération sur articles assignés au carton courant | - |
 | `PlacerArticle(carton, article)` | `carton: Carton, article: Article` | Mise à jour carton | `occupation_avant, occupation_apres` | Placement physique garanti (pas de vérification capacité) | Placement toujours possible |
 | **Variables de Contrôle** | - | - | `occupation_totale, nombre_cartons, distribution` | Garantie mathématique du court-circuit | 100% articles critiques placés |
-```
+
 
 ### Algorithme Gestion Quantités Partielles (Phase 2)
 
@@ -389,7 +389,7 @@ flowchart TD
 
 ### Algorithme Knapsack Multi-Contraintes (Phase 3)
 
-```java
+```
 ALGORITHME KnapsackMultiContraintes(articles_safe, cartons_existants)
 DEBUT
     POUR CHAQUE carton DANS cartons_existants FAIRE
