@@ -167,6 +167,21 @@ public class OptimisationContext {
     Map<ArticleType, Double> coefficients_occupation; // Règles métier
     int search_depth;                       // Horizon projections (SAFE)
 }
+```
+
+**📋 Tableau d'Usage - OptimisationContext**
+
+| Méthode/Attribut | Variables Utilisées | Description Usage | Validation Requise | Phase d'Utilisation |
+|------------------|--------------------|--------------------|-------------------|-------------------|
+| `articles_input` | `List<Article>` | Liste complète des articles à traiter dans le colis | Non null, size > 0, articles valides | Entrée - Classification |
+| `contraintes_carton` | `CartonConstraints` | Contraintes physiques des cartons (capacité max = 1.0) | capacite_maximale > 0 | Toutes phases - Validation |
+| `coefficients_occupation` | `Map<ArticleType,Double>` | Règles métier : TYPE_1=0.2, TYPE_2=0.25, TYPE_3=0.1 | Tous coeffs entre 0 et 1.0 | Phases 1,2,3 - Calculs |
+| `search_depth` | `int` | Horizon temporel pour projections stock des articles SAFE | 1 ≤ depth ≤ 30 jours | Phase 3 uniquement |
+| `getArticlesByGrade(grade)` | `grade: GradeCriticite` | Filtrage articles par niveau de criticité | Grade valide | Classification |
+| `getTotalArticleCount()` | Aucune | Compte total des articles toutes criticités | - | Métriques |
+| `validateConfiguration()` | Tous attributs | Validation cohérence configuration avant traitement | Règles RG-002, RG-006 | Initialisation |
+
+```java
 
 // Résultat final
 public class PackingResult {
@@ -176,6 +191,23 @@ public class PackingResult {
     boolean validation_success;            // État validation
     long temps_execution_ms;               // Performance
 }
+```
+
+**📋 Tableau d'Usage - PackingResult**
+
+| Méthode/Attribut | Variables Utilisées | Description Usage | Validation Requise | Phase d'Utilisation |
+|------------------|--------------------|--------------------|-------------------|-------------------|
+| `cartons_finaux` | `List<Carton>` | Résultat final avec tous cartons optimisés remplis | size ≥ 1, occupation ≤ 1.0 | Sortie Phase 4 |
+| `metriques` | `MetriquesOptimisation` | KPIs performance : temps, mémoire, taux satisfaction | Toutes métriques calculées | Phase 4 - Reporting |
+| `quantites_partielles` | `List<ArticlePartiel>` | Détail articles URGENT_B non satisfaits totalement | Peut être vide si 100% satisfaction | Phase 2 → Phase 4 |
+| `validation_success` | `boolean` | État validation globale : true si toutes validations OK | Obligatoirement calculé | Phase 4 |
+| `temps_execution_ms` | `long` | Durée totale exécution algorithme complet | > 0, < timeout_max | Phase 4 - Métriques |
+| `getTauxSatisfactionGlobal()` | `metriques.taux_satisfaction` | Pourcentage global articles placés toutes criticités | 0.0 ≤ taux ≤ 1.0 | Reporting |
+| `getNombreCartonsTotal()` | `cartons_finaux.size()` | Nombre total cartons créés pour le colis | ≥ 1 | Métriques |
+| `hasQuantitesPartielles()` | `quantites_partielles.isEmpty()` | Indicateur présence quantités URGENT_B partielles | - | Validation RG-005 |
+| `generateSummaryReport()` | Tous attributs | Génération rapport résumé pour interface utilisateur | Données cohérentes | Interface |
+
+```java
 
 // Article à traiter
 public class Article {
@@ -187,6 +219,28 @@ public class Article {
     int[] stock_projections;               // Pour SAFE uniquement
     int stock_minimum, stock_maximum;      // Pour SAFE uniquement
 }
+```
+
+**📋 Tableau d'Usage - Article**
+
+| Méthode/Attribut | Variables Utilisées | Description Usage | Validation Requise | Phase d'Utilisation |
+|------------------|--------------------|--------------------|-------------------|-------------------|
+| `id` | `String` | Identifiant unique article pour traçabilité | Non null, unique | Toutes phases - Identification |
+| `type` | `ArticleType` | Type physique : TYPE_1, TYPE_2, TYPE_3 | Valeur enum valide | Calcul coefficient occupation |
+| `grade` | `GradeCriticite` | Niveau criticité : CRITIQUE_A/B, URGENT_A/B, SAFE | Valeur enum valide | Classification par phases |
+| `quantite` | `int` | Quantité à placer dans le colis | > 0 | Calculs occupation et placement |
+| `coefficient_occupation` | `double` | Espace occupé par unité selon type | 0 < coeff ≤ 1.0 | Calculs contraintes physiques |
+| `stock_projections` | `int[]` | Projections stock par jour (SAFE uniquement) | Taille = search_depth, valeurs ≥ 0 | Phase 3 - Objectifs valorisation |
+| `stock_minimum` | `int` | Stock minimum projeté sur horizon | ≥ 0, calculé depuis projections | Phase 3 - Borne inférieure |
+| `stock_maximum` | `int` | Stock maximum projeté sur horizon | ≥ stock_minimum | Phase 3 - Borne supérieure |
+| `getOccupationTotale()` | `quantite * coefficient_occupation` | Calcul espace total occupé par cet article | Résultat ≤ capacite_max_carton | Contraintes placement |
+| `isCritique()` | `grade` | Test si article nécessite traitement court-circuit | - | Routage Phase 1 |
+| `isUrgentB()` | `grade == URGENT_B` | Test si article pour complétion quantités partielles | - | Routage Phase 2 |
+| `isSafe()` | `grade == SAFE` | Test si article pour optimisation knapsack | - | Routage Phase 3 |
+| `calculateStockObjective()` | `stock_minimum, stock_maximum` | Calcul objectif = (min + max) / 2 | stock_projections valides | Phase 3 - Knapsack |
+| `hasValidProjections()` | `stock_projections` | Validation projections pour articles SAFE | Array non null, taille correcte | Phase 3 - Prérequis |
+
+```java
 
 // Carton résultat
 public class Carton {
@@ -196,6 +250,24 @@ public class Carton {
     double capacite_maximale = 1.0;        // Constante
     boolean est_finalise;                  // État
 }
+```
+
+**📋 Tableau d'Usage - Carton**
+
+| Méthode/Attribut | Variables Utilisées | Description Usage | Validation Requise | Phase d'Utilisation |
+|------------------|--------------------|--------------------|-------------------|-------------------|
+| `id` | `String` | Identifiant unique carton pour traçabilité | Non null, unique | Toutes phases - Identification |
+| `occupation_actuelle` | `double` | Pourcentage d'espace occupé actuellement | 0.0 ≤ valeur ≤ 1.0 | Contraintes placement |
+| `articles_contenus` | `List<Article>` | Liste articles effectivement placés dans carton | Cohérent avec occupation_actuelle | État carton |
+| `capacite_maximale` | `double` | Capacité maximale carton = 1.0 (100%) | Constante = 1.0 | Contrainte absolue |
+| `est_finalise` | `boolean` | État : true si carton ne peut plus recevoir d'articles | - | Gestion état |
+| `getCapaciteRestante()` | `capacite_maximale - occupation_actuelle` | Calcul espace libre disponible | Résultat ≥ 0 | Phases 2,3 - Placement |
+| `peutAccueillir(article)` | `article.getOccupationTotale(), capacite_restante` | Test si article peut être placé sans débordement | - | Validation placement |
+| `ajouterArticle(article)` | `article, occupation_actuelle, articles_contenus` | Placement effectif article avec mise à jour état | peutAccueillir() == true | Exécution placement |
+| `calculerOccupationReelle()` | `articles_contenus` | Recalcul occupation depuis articles contenus | Cohérence avec occupation_actuelle | Validation |
+| `getNombreArticles()` | `articles_contenus.size()` | Nombre total d'articles dans le carton | ≥ 0 | Métriques |
+| `getTauxOccupation()` | `occupation_actuelle * 100` | Pourcentage occupation pour affichage | 0 ≤ résultat ≤ 100 | Interface utilisateur |
+| `finaliser()` | `est_finalise = true` | Verrouillage carton contre modifications ultérieures | - | Phase 4 - Finalisation |
 ```
 
 ---
@@ -228,6 +300,20 @@ DEBUT
 FIN
 ```
 
+**📋 Tableau d'Usage - Algorithme OptimiserColis (Orchestrateur Principal)**
+
+| Méthode/Étape | Variables Entrée | Variables Sortie | Variables Internes | Description Usage | Validation |
+|---------------|------------------|------------------|-------------------|-------------------|------------|
+| `FiltrerParGrade(articles, grades)` | `context.articles: List<Article>`, `grades: [CRITIQUE_A,B,URGENT_A]` | `articles_critiques: List<Article>` | Aucune | Extraction articles prioritaires pour traitement court-circuit | Articles triés par priorité |
+| `TraiterArticlesCritiques(articles)` | `articles_critiques: List<Article>` | `cartons_resultats: List<Carton>` | `occupation_totale, nb_cartons` | Phase 1: Création cartons garantis avec PLAFOND(occupation) | 100% articles critiques placés |
+| `FiltrerParGrade(articles, [URGENT_B])` | `context.articles: List<Article>` | `articles_urgent_b: List<Article>` | Aucune | Extraction articles pour complétion quantités partielles | Grade = URGENT_B uniquement |
+| `CompleterAvecUrgentB(cartons, articles)` | `cartons_resultats, articles_urgent_b` | `cartons_resultats: List<Carton>` | `capacite_libre, quantite_partielle` | Phase 2: Remplissage cartons existants selon RG-005 | Gestion quantités partielles |
+| `FiltrerParGrade(articles, [SAFE])` | `context.articles: List<Article>` | `articles_safe: List<Article>` | Aucune | Extraction articles pour optimisation valorisation stock | Projections stock valides |
+| `OptimiserAvecSafe(cartons, articles)` | `cartons_resultats, articles_safe` | `cartons_resultats: List<Carton>` | `dp[][], solution_optimale` | Phase 3: Knapsack multi-contraintes avec objectif (min+max)/2 | Solution optimale respectant contraintes |
+| `ValiderEtGenererRapport(cartons)` | `cartons_resultats: List<Carton>` | `PackingResult` | `metriques, warnings, validation` | Phase 4: Contrôles finaux et génération rapport complet | Toutes validations passées |
+| **Variables Globales** | `context: OptimisationContext` | `PackingResult` | `articles_critiques, articles_urgent_b, articles_safe, cartons_resultats` | État partagé entre phases pour cohérence traitement | Cohérence données inter-phases |
+```
+
 ### Algorithme Court-Circuit (Phase 1)
 
 ```java
@@ -247,6 +333,20 @@ DEBUT
 
     RETOURNER cartons
 FIN
+```
+
+**📋 Tableau d'Usage - Algorithme TraiterArticlesCritiques (Court-Circuit Phase 1)**
+
+| Méthode/Étape | Variables Entrée | Variables Sortie | Variables Internes | Description Usage | Validation |
+|---------------|------------------|------------------|-------------------|-------------------|------------|
+| `CalculerOccupationRequise(articles)` | `articles_critiques: List<Article>` | `occupation_totale: double` | Aucune | Calcul Σ(quantité × coefficient) pour tous articles critiques | occupation_totale ≥ 0 |
+| `PLAFOND(occupation_totale)` | `occupation_totale: double` | `nombre_cartons: int` | Aucune | Garantie mathématique : ceil() assure 100% placement | nombre_cartons ≥ 1 |
+| `CreerCartons(nombre_cartons)` | `nombre_cartons: int` | `cartons: List<Carton>` | Aucune | Création physique cartons vides avec capacité max = 1.0 | Cartons initialisés correctement |
+| `DistribuerArticlesParCartons(articles, nb)` | `articles_critiques, nombre_cartons` | `distribution: Map<Integer,List<Article>>` | Algorithme round-robin | Répartition équilibrée articles sur cartons créés | Distribution homogène |
+| **Boucle POUR carton** | `cartons: List<Carton>` | `cartons: List<Carton>` | `carton: Carton` | Itération sur tous cartons pour placement | - |
+| **Boucle POUR article** | `distribution[carton.index]` | - | `article: Article` | Itération sur articles assignés au carton courant | - |
+| `PlacerArticle(carton, article)` | `carton: Carton, article: Article` | Mise à jour carton | `occupation_avant, occupation_apres` | Placement physique garanti (pas de vérification capacité) | Placement toujours possible |
+| **Variables de Contrôle** | - | - | `occupation_totale, nombre_cartons, distribution` | Garantie mathématique du court-circuit | 100% articles critiques placés |
 ```
 
 ### Algorithme Gestion Quantités Partielles (Phase 2)
@@ -321,6 +421,26 @@ DEBUT
 
     RETOURNER cartons_existants
 FIN
+```
+
+**📋 Tableau d'Usage - Algorithme KnapsackMultiContraintes (Phase 3)**
+
+| Méthode/Étape | Variables Entrée | Variables Sortie | Variables Internes | Description Usage | Validation |
+|---------------|------------------|------------------|-------------------|-------------------|------------|
+| **Boucle POUR carton** | `cartons_existants: List<Carton>` | `cartons_existants: List<Carton>` | `carton: Carton` | Traitement individuel chaque carton avec espace restant | carton.occupation_actuelle < 1.0 |
+| `capacite_restante = 1.0 - occupation` | `carton.occupation_actuelle: double` | `capacite_restante: double` | Aucune | Calcul espace libre disponible pour articles SAFE | 0.0 ≤ capacite_restante ≤ 1.0 |
+| `ARRONDI(capacite × 100)` | `capacite_restante: double` | `capacite_discretisee: int` | Aucune | Discrétisation selon RG-006 pour programmation dynamique | 0 ≤ capacite_discretisee ≤ 100 |
+| `FiltrerParCapacite(articles, capacite)` | `articles_safe, capacite_restante` | `articles_candidats: List<Article>` | Aucune | Préfiltre articles pouvant physiquement entrer dans carton | Tous articles respectent contrainte |
+| `InitialiserTableDP(n, W)` | `articles_candidats.size, capacite_discretisee` | `dp: double[][]` | Aucune | Création matrice DP[n+1][W+1] initialisée à 0.0 | Dimensions correctes |
+| **Boucle POUR i (articles)** | `articles_candidats: List<Article>` | - | `i: int, article: Article` | Itération sur tous articles candidats pour DP | 1 ≤ i ≤ n |
+| **Boucle POUR w (capacités)** | `capacite_discretisee: int` | - | `w: int` | Itération sur toutes capacités possibles pour DP | 0 ≤ w ≤ capacite_discretisee |
+| `cout_occupation_discret` | `article.quantite, article.coefficient` | `cout_occupation_discret: int` | Aucune | Poids article discrétisé = quantité × coefficient × 100 | 1 ≤ cout ≤ capacite_discretisee |
+| `CalculerValeurValorisationStock(article)` | `article: Article (SAFE)` | `valeur_stock: double` | `stock_min, stock_max, objectif` | Fonction utilité = (min+max)/2 - stock_final + bonus | valeur_stock ≥ 0 |
+| **Test SI cout <= w** | `cout_occupation_discret, w` | - | Aucune | Condition inclusion article dans solution partielle | Respect contrainte capacité |
+| `dp[i][w] = MAX(...)` | `dp[i-1][w], dp[i-1][w-cout] + valeur` | `dp[i][w]: double` | Valeurs précédentes DP | Équation récurrence programmation dynamique | dp[i][w] ≥ dp[i-1][w] |
+| `ReconstruireSolution(dp, articles, W)` | `dp[][], articles_candidats, capacite_discretisee` | `solution: List<Article>` | Backtracking depuis dp[n][W] | Extraction articles optimaux de la table DP | Solution respecte contraintes |
+| `AppliquerSolution(carton, solution)` | `carton, solution: List<Article>` | Carton mis à jour | Placement effectif articles | Application physique résultat knapsack sur carton | Nouvelle occupation ≤ 1.0 |
+| **Variables Globales DP** | - | - | `dp[][], capacite_discretisee, articles_candidats` | État partagé algorithme knapsack | Cohérence table DP |
 ```
 
 ---
