@@ -54,13 +54,12 @@ sequenceDiagram
             Phase1-->>Standard: cartons_avec_critiques
 
         else Composition = "SAFE_SEULEMENT"
-            Note over Standard: 🎯 SAFE Uniquement
-            Standard->>Phase3: OptimiserSafeUniquement(articles_safe)
-            Phase3-->>Standard: cartons_optimises
+            Note over Standard: ❌ SAFE Seul - Pas de Proposition
+            Standard->>Standard: cartons_resultats = LISTE_VIDE
 
         else Composition = "AUCUN_ARTICLE"
             Note over Standard: ❌ Aucune Proposition
-            Standard->>Standard: cartons_resultats = VIDE
+            Standard->>Standard: cartons_resultats = LISTE_VIDE
         end
 
         Note over Standard: ✅ Finalisation
@@ -68,13 +67,13 @@ sequenceDiagram
         Validateur-->>Standard: PackingResult
         Standard-->>Strategy: PackingResult
 
-    else Stratégie = "PREMIUM"
-        Strategy->>Strategy: ExecuterStrategiePremium(...)
-        Note over Strategy: [Logique Premium]
+    else Stratégie = "Lot2"
+        Strategy->>Strategy: ExecuterStrategieLot2(critiques, urgent_b, safe)
+        Note over Strategy: 📦 Stratégie Lot2 - Logique spécifique
 
-    else Stratégie = "EXPRESS"
-        Strategy->>Strategy: ExecuterStrategieExpress(...)
-        Note over Strategy: [Logique Express]
+    else Stratégie = "Lot3"
+        Strategy->>Strategy: ExecuterStrategieLot3(critiques, urgent_b, safe)
+        Note over Strategy: 🎯 Stratégie Lot3 - Logique spécifique
     end
 
     Strategy-->>Orchestrateur: PackingResult_final
@@ -91,8 +90,8 @@ stateDiagram-v2
     ClassificationArticles --> SelectionStrategie : Articles classifiés
 
     SelectionStrategie --> StrategieDefault : strategie = "DEFAULT"
-    SelectionStrategie --> StrategiePremium : strategie = "PREMIUM"
-    SelectionStrategie --> StrategieExpress : strategie = "EXPRESS"
+    SelectionStrategie --> StrategieLot2 : strategie = "Lot2"
+    SelectionStrategie --> StrategieLot3 : strategie = "Lot3"
 
     state StrategieDefault {
         [*] --> AnalyseComposition
@@ -126,24 +125,23 @@ stateDiagram-v2
         UrgentBSafe --> TraiterUrgentB
         TraiterUrgentB --> OptimiserSafe
 
-        SafeSeuls --> OptimiserSafeUnique
+        SafeSeuls --> ResultatVide
 
         AucunArticle --> ResultatVide
 
         OptimiserSafe --> ValidationFinale
-        OptimiserSafeUnique --> ValidationFinale
         ResultatVide --> ValidationFinale
         ValidationFinale --> [*]
     }
 
-    StrategiePremium --> ValidationFinale : [Logique Premium]
-    StrategieExpress --> ValidationFinale : [Logique Express]
+    StrategieLot2 --> ValidationFinale : [Logique Lot2]
+    StrategieLot3 --> ValidationFinale : [Logique Lot3]
 
     ValidationFinale --> [*] : PackingResult retourné
 
     note right of CompositionComplete : Flux complet 3 phases
     note right of CritiquesSeuls : Court-circuit pur
-    note right of SafeSeuls : Knapsack classique
+    note right of SafeSeuls : Pas de proposition (LISTE_VIDE)
     note right of AucunArticle : Retour liste vide
 ```
 
@@ -163,8 +161,8 @@ flowchart TD
     Safe --> Strategy
 
     Strategy -->|DEFAULT| DefaultStrat[📦 Stratégie Standard]
-    Strategy -->|PREMIUM| PremiumStrat[💎 Stratégie Premium]
-    Strategy -->|EXPRESS| ExpressStrat[⚡ Stratégie Express]
+    Strategy -->|Lot2| Lot2Strat[📦 Stratégie Lot2]
+    Strategy -->|Lot3| Lot3Strat[🎯 Stratégie Lot3]
 
     DefaultStrat --> Analyze{🔍 Analyser Composition}
 
@@ -196,17 +194,17 @@ flowchart TD
     TraitUrgent --> P3d[🎯 OptimiserSafe]
     P3d --> Validate
 
-    SafeOnly --> P3e[🎯 OptimiserSafeUnique]
-    P3e --> Validate
+    SafeOnly --> EmptyResultSafe[📋 SAFE Seul = Liste Vide]
+    EmptyResultSafe --> Validate
 
-    Empty --> EmptyResult[📋 Liste Vide]
+    Empty --> EmptyResult[📋 Aucun Article = Liste Vide]
     EmptyResult --> Validate
 
-    PremiumStrat --> LogiquePremium[💎 Logique Premium]
-    LogiquePremium --> Validate
+    Lot2Strat --> LogiqueLot2[📦 Logique Lot2]
+    LogiqueLot2 --> Validate
 
-    ExpressStrat --> LogiqueExpress[⚡ Logique Express]
-    LogiqueExpress --> Validate
+    Lot3Strat --> LogiqueLot3[🎯 Logique Lot3]
+    LogiqueLot3 --> Validate
 
     Validate[✅ ValiderEtGenererRapport]
     Validate --> Result[📊 PackingResult]
@@ -257,8 +255,8 @@ graph TB
         Case3 --> Trait3[Phase 1 → Phase 3]
         Case4 --> Trait4[Phase 1 → Phase 2 → Phase 3]
         Case5 --> Trait5[TraiterUrgentB → Phase 3]
-        Case6 --> Trait6[OptimiserSafe uniquement]
-        Case7 --> Trait7[Résultat vide]
+        Case6 --> Trait6[Résultat LISTE_VIDE - Pas de proposition]
+        Case7 --> Trait7[Résultat LISTE_VIDE - Aucun article]
     end
 
     style Case1 fill:#ffcdd2
@@ -316,14 +314,36 @@ flowchart LR
     style G fill:#f3e5f5
 ```
 
-## 📋 Résumé des Diagrammes
+## 📋 Matrice des Changements Appliqués
 
-| Diagramme | Usage | Audience | Détail |
-|-----------|--------|----------|--------|
-| **Séquence Global** | Interactions temporelles complètes | Développeurs/Architectes | Très détaillé |
-| **État Décisionnel** | Flux de décision et transitions | Analystes métier | Logique business |
-| **Flowchart Détaillé** | Logique algorithmique complète | Développeurs | Implémentation |
-| **Matrice Composition** | 7 cas de composition possibles | Product Owner | Vue métier |
-| **Flux Simplifié** | Vue d'ensemble du processus | Management | Vue exécutive |
+| Modification | Ancien Comportement | Nouveau Comportement | Impact Diagrammes |
+|--------------|-------------------|-------------------|------------------|
+| **Stratégies** | PREMIUM, EXPRESS | **Lot2**, **Lot3** | Tous diagrammes mis à jour |
+| **SAFE_SEULEMENT** | `OptimiserSafeUniquement()` | **`LISTE_VIDE()`** | Flowchart + État modifiés |
+| **Nomenclature** | Stratégies génériques | **Stratégies par lots** | Séquence + État |
 
-Ces diagrammes offrent **5 perspectives différentes** du même algorithme, adaptées à chaque audience ! 🎯
+## 📊 Nouvelle Matrice Stratégique
+
+| Stratégie | Usage | Articles Traités | Résultat SAFE Seul |
+|-----------|-------|------------------|-------------------|
+| **DEFAULT** | Stratégie standard Lot1 | Tous types avec logique complète | ❌ **LISTE_VIDE** |
+| **Lot2** | Stratégie spécifique Lot2 | À définir selon besoins Lot2 | À définir |
+| **Lot3** | Stratégie spécifique Lot3 | À définir selon besoins Lot3 | À définir |
+
+## 🎯 Résumé des Diagrammes Mis à Jour
+
+| Diagramme | Usage | Audience | Détail | Changements Appliqués |
+|-----------|--------|----------|--------|---------------------|
+| **Séquence Global** | Interactions temporelles complètes | Développeurs/Architectes | Très détaillé | ✅ Lot2/Lot3, SAFE_SEULEMENT=VIDE |
+| **État Décisionnel** | Flux de décision et transitions | Analystes métier | Logique business | ✅ Nouvelles stratégies, SafeSeuls→ResultatVide |
+| **Flowchart Détaillé** | Logique algorithmique complète | Développeurs | Implémentation | ✅ Branches Lot2/Lot3, EmptyResultSafe |
+| **Matrice Composition** | 7 cas de composition possibles | Product Owner | Vue métier | ✅ Case6 modifié (LISTE_VIDE) |
+| **Flux Simplifié** | Vue d'ensemble du processus | Management | Vue exécutive | ✅ Cohérent avec modifications |
+
+## ⚠️ Points d'Attention Métier
+
+- **SAFE_SEULEMENT** retourne maintenant **LISTE_VIDE** au lieu d'optimiser
+- **Stratégies Lot2/Lot3** nécessiteront une implémentation spécifique
+- **Logique Default** reste inchangée pour les autres cas de composition
+
+Ces diagrammes mis à jour reflètent **fidèlement** l'algorithme modifié ! 🎯
