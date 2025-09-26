@@ -268,7 +268,6 @@ public class Carton {
 | `getNombreArticles()` | `articles_contenus.size()` | Nombre total d'articles dans le carton | ≥ 0 | Métriques |
 | `getTauxOccupation()` | `occupation_actuelle * 100` | Pourcentage occupation pour affichage | 0 ≤ résultat ≤ 100 | Interface utilisateur |
 | `finaliser()` | `est_finalise = true` | Verrouillage carton contre modifications ultérieures | - | Phase 4 - Finalisation |
-```
 
 
 
