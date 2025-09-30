@@ -251,6 +251,39 @@ J6 = 15 - 5 = 10
 J7 = 10 - 1 = 9
 ```
 
+### 2.4 Critères d'Acceptation Module 1
+
+```gherkin
+# CA-M1-001: Paramètre search_depth
+Given le Module de calcul de besoin configuré
+  And le paramètre search_depth = 15 jours
+When le calcul est lancé
+Then le système analyse les plannings sur 15 jours
+  And seuls les jours ouvrables sont pris en compte
+
+# CA-M1-002: Facteur d'Imprévu
+Given un technicien avec shift 09h-19h (10h/jour)
+  And search_depth = 15 jours (12 jours ouvrables)
+  And heures_shift_totales = 120h
+  And heures_libres_continues ≥ 1h = 24h détectées
+When Imprev_Fact est calculé
+Then Imprev_Fact = 1 + (24/120) = 1.2
+
+# CA-M1-003: Stock Initial avec Transit
+Given un Article_Type avec stock_actuel = 10 unités
+  And un colis en transit avec 5 unités
+When l'initialisation du stock est effectuée
+Then stock_initial = 15 unités
+  And stock_projection[Article_Type][0] = 15
+
+# CA-M1-004: Projection Stock
+Given un Article_Type avec stock_initial = 25 unités
+  And consommation_prevue = [3, 1, 4, 2, 0, 5, 1]
+When la projection sur 7 jours est effectuée
+Then stock_projection[1] = 22
+  And stock_projection[2] = 21
+  And stock_projection[7] = 9
+```
 
 ---
 
@@ -313,12 +346,12 @@ DEBUT
 
     POUR CHAQUE materiel DANS liste_materiels FAIRE
         // 1. Projection stock (issue Module 1)
-        projections = ProjectionStock(materiel, 10)
+        projections = ProjectionStock(materiel, search_depth)
 
         // 2. Urgence quantitative pour chaque jour
-        urgences_quanti = TABLEAU taille 10
-        POUR jour DE 1 A 10 FAIRE
-            SI projections[jour] < 0 OU projections[jour] < materiel.stock_min ALORS
+        urgences_quanti = TABLEAU taille search_depth
+        POUR jour DE 1 A search_depth FAIRE
+            SI projections[jour] <= materiel.stock_min ALORS
                 urgences_quanti[jour] = 100
             SINON
                 urgences_quanti[jour] = 0
@@ -387,13 +420,13 @@ UrQ = MAX = 100
 #### **RG2 - Urgence Temporelle (UrT)**
 
 ```pseudocode
-FONCTION CalculerUrgenceTemporelle(stock_projection, stock_min)
+FONCTION CalculerUrgenceTemporelle(stock_projection, stock_min, search_depth)
 DEBUT
     // Trouver premier jour de rupture
     premier_jour_critique = -1
 
-    POUR jour DE 1 A 10 FAIRE
-        SI stock_projection[jour] < stock_min ALORS
+    POUR jour DE 1 A search_depth FAIRE
+        SI stock_projection[jour] <= stock_min ALORS
             premier_jour_critique = jour
             SORTIR_BOUCLE
         FIN_SI
@@ -680,14 +713,14 @@ DEBUT
     cartons_resultats ← LISTE_VIDE()
 
     // === CLASSIFICATION INITIALE ===
-    articles_critiques ← FiltrerParGrade(articles_input, [CRITIQUE_A, CRITIQUE_B, URGENT_A])
+    articles_prioritaires ← FiltrerParGrade(articles_input, [CRITIQUE_A, CRITIQUE_B, URGENT_A])
     articles_urgent_b ← FiltrerParGrade(articles_input, [URGENT_B])
     articles_safe ← FiltrerParGrade(articles_input, [SAFE])
 
     // === SÉLECTION STRATÉGIE ===
     SELON strategie FAIRE
         CAS "DEFAULT":
-            RETOURNER ExecuterStrategieStandard(articles_critiques, articles_urgent_b, articles_safe)
+            RETOURNER ExecuterStrategieStandard(articles_prioritaires, articles_urgent_b, articles_safe)
         CAS "Lot2":
             RETOURNER ExecuterStrategieLot2(...)
         CAS "Lot3":
@@ -701,33 +734,37 @@ FIN
 #### **Stratégie Standard (Lot 1)**
 
 ```pseudocode
-ALGORITHME ExecuterStrategieStandard(articles_critiques, articles_urgent_b, articles_safe)
+ALGORITHME ExecuterStrategieStandard(articles_prioritaires, articles_urgent_b, articles_safe)
 DEBUT
     cartons_resultats ← LISTE_VIDE()
 
-    composition ← AnalyserComposition(articles_critiques, articles_urgent_b, articles_safe)
+    composition ← AnalyserComposition(articles_prioritaires, articles_urgent_b, articles_safe)
 
     SELON composition FAIRE
         CAS "COMPOSITION_COMPLETE":
-            // Phase 1
-            cartons_resultats ← TraiterArticlesCritiques(articles_critiques)
+            // Phase 1: Articles prioritaires (CRITIQUE_A/B + URGENT_A)
+            cartons_resultats ← TraiterArticlesPrioritaires(articles_prioritaires)
             // Phase 2
             cartons_resultats ← CompleterAvecUrgentB(cartons_resultats, articles_urgent_b)
             // Phase 3
             cartons_resultats ← OptimiserAvecSafe(cartons_resultats, articles_safe)
 
-        CAS "CRITIQUES_SEULEMENT":
-            cartons_resultats ← TraiterArticlesCritiques(articles_critiques)
+        CAS "PRIORITAIRES_SEULEMENT":
+            cartons_resultats ← TraiterArticlesPrioritaires(articles_prioritaires)
 
         CAS "URGENT_B_SEULEMENT":
             cartons_resultats ← TraiterArticlesUrgentB(articles_urgent_b)
 
-        CAS "CRITIQUES_ET_URGENT_B":
-            cartons_resultats ← TraiterArticlesCritiques(articles_critiques)
+        CAS "PRIORITAIRES_ET_URGENT_B":
+            cartons_resultats ← TraiterArticlesPrioritaires(articles_prioritaires)
             cartons_resultats ← CompleterAvecUrgentB(cartons_resultats, articles_urgent_b)
 
+        CAS "PRIORITAIRES_ET_SAFE":
+            cartons_resultats ← TraiterArticlesPrioritaires(articles_prioritaires)
+            cartons_resultats ← OptimiserAvecSafe(cartons_resultats, articles_safe)
+
         CAS "URGENT_B_ET_SAFE":
-            cartons_resultats ← TraiterArticlesUrgentsB(articles_urgent_b)
+            cartons_resultats ← TraiterArticlesUrgentB(articles_urgent_b)
             cartons_resultats ← OptimiserAvecSafe(cartons_resultats, articles_safe)
 
         CAS "SAFE_SEULEMENT":
@@ -744,20 +781,20 @@ FIN
 #### **Analyse de Composition**
 
 ```pseudocode
-ALGORITHME AnalyserComposition(articles_critiques, articles_urgent_b, articles_safe)
+ALGORITHME AnalyserComposition(articles_prioritaires, articles_urgent_b, articles_safe)
 DEBUT
-    a_critiques ← (articles_critiques.taille > 0)
+    a_prioritaires ← (articles_prioritaires.taille > 0)
     a_urgent_b ← (articles_urgent_b.taille > 0)
     a_safe ← (articles_safe.taille > 0)
 
-    SI a_critiques ET a_urgent_b ET a_safe ALORS
+    SI a_prioritaires ET a_urgent_b ET a_safe ALORS
         RETOURNER "COMPOSITION_COMPLETE"
-    SINON_SI a_critiques ET a_urgent_b ALORS
-        RETOURNER "CRITIQUES_ET_URGENT_B"
-    SINON_SI a_critiques ET a_safe ALORS
-        RETOURNER "CRITIQUES_ET_SAFE"
-    SINON_SI a_critiques ALORS
-        RETOURNER "CRITIQUES_SEULEMENT"
+    SINON_SI a_prioritaires ET a_urgent_b ALORS
+        RETOURNER "PRIORITAIRES_ET_URGENT_B"
+    SINON_SI a_prioritaires ET a_safe ALORS
+        RETOURNER "PRIORITAIRES_ET_SAFE"
+    SINON_SI a_prioritaires ALORS
+        RETOURNER "PRIORITAIRES_SEULEMENT"
     SINON_SI a_urgent_b ET a_safe ALORS
         RETOURNER "URGENT_B_ET_SAFE"
     SINON_SI a_urgent_b ALORS
@@ -788,7 +825,7 @@ Coefficient_Occupation = 1 / Quantité_Max_Par_Carton
 
 **Calcul Nombre de Cartons :**
 ```
-Nombre_Cartons = E(ARRONDI_SUP(Σ(quantité_article × coefficient_type)))
+Nombre_Cartons = ARRONDI_SUP(Σ(quantité_article × coefficient_type))
 ```
 
 **Exemple Complet :**
@@ -803,7 +840,7 @@ Occupation totale:
 = 2.5 + 0.4 + 1.5
 = 4.4
 
-Nombre de cartons = E(ARRONDI_SUP(4.4)) = E(5) = 5 cartons
+Nombre de cartons = ARRONDI_SUP(4.4) = 5 cartons
 ```
 
 #### **RG02 - Hiérarchie de Criticité**
@@ -813,7 +850,7 @@ Nombre de cartons = E(ARRONDI_SUP(4.4)) = E(5) = 5 cartons
 ```
 
 **Traitement :**
-- ✅ **Critiques** : Court-circuit obligatoire (100% dans APP)
+- ✅ **Prioritaires (CRITIQUE_A/B + URGENT_A)** : Court-circuit obligatoire (100% dans APP)
 - ⚠️ **URGENT_B** : Complétion si espace disponible
 - 🎯 **SAFE** : Optimisation knapsack espace résiduel
 
@@ -841,12 +878,72 @@ FIN_POUR
 **Objectif :**
 Optimiser vers le stock cible `(stock_min + stock_max) / 2` dans l'espace restant **SANS créer de nouveaux cartons**.
 
-#### **RG06 - Algorithme TraiterArticlesCritiques**
+**Algorithme :**
+```pseudocode
+ALGORITHME OptimiserArticlesSafe(articles_safe, cartons_existants)
+DEBUT
+    // Calculer quantités SAFE requises pour atteindre stock cible
+    POUR CHAQUE article DANS articles_safe FAIRE
+        stock_cible = (article.stock_min + article.stock_max) / 2
+        stock_actuel_projete = article.stock_actuel + article.quantite_deja_placee
+
+        SI stock_actuel_projete < stock_cible ALORS
+            article.quantite_a_placer = stock_cible - stock_actuel_projete
+        SINON
+            article.quantite_a_placer = 0
+            RETIRER article DE articles_safe
+        FIN_SI
+    FIN_POUR
+
+    // Appliquer Knapsack Multi-Contraintes sur espace résiduel
+    RETOURNER KnapsackMultiContraintes(articles_safe, cartons_existants)
+FIN
+```
+
+#### **RG05 - Fonction de Valorisation Stock (pour Knapsack)**
+
+**Objectif :**
+Déterminer la valeur d'un article SAFE pour prioriser dans l'optimisation knapsack.
+
+**Algorithme :**
+```pseudocode
+FONCTION CalculerValeurValorisationStock(article)
+DEBUT
+    stock_cible = (article.stock_min + article.stock_max) / 2
+    stock_actuel = article.stock_actuel
+
+    // Facteur 1: Écart au stock cible (normalisé)
+    ecart_normalise = (stock_cible - stock_actuel) / stock_cible
+    poids_ecart = 40.0
+
+    // Facteur 2: Efficacité d'occupation (favorise petits articles)
+    efficacite_occupation = 1.0 / article.coefficient_occupation
+    poids_efficacite = 30.0
+
+    // Facteur 3: Fréquence d'utilisation (si disponible en BDD)
+    frequence_usage = ObtenirFrequenceUsage(article.type)  // 0.0 à 1.0
+    poids_frequence = 30.0
+
+    // Calcul valeur composite
+    valeur = (ecart_normalise × poids_ecart) +
+             (efficacite_occupation × poids_efficacite) +
+             (frequence_usage × poids_frequence)
+
+    RETOURNER valeur
+FIN
+```
+
+**Justification des facteurs :**
+- **Écart au stock cible** : Plus l'article est loin de son stock optimal, plus il est prioritaire
+- **Efficacité d'occupation** : Favorise les petits articles pour maximiser la diversité
+- **Fréquence d'utilisation** : Articles fréquemment utilisés sont prioritaires
+
+#### **RG06 - Algorithme TraiterArticlesPrioritaires**
 
 ```pseudocode
-ALGORITHME TraiterArticlesCritiques(articles_critiques)
+ALGORITHME TraiterArticlesPrioritaires(articles_prioritaires)
 DEBUT
-    occupation_totale ← CalculerOccupationRequise(articles_critiques)
+    occupation_totale ← CalculerOccupationRequise(articles_prioritaires)
     nombre_cartons ← PLAFOND(occupation_totale)
 
     cartons ← CreerCartons(nombre_cartons)
@@ -854,7 +951,7 @@ DEBUT
     // Distribution homogène (round-robin possible)
     POUR chaque carton DANS cartons FAIRE
         TANT_QUE carton.occupation_actuelle < 1.0 FAIRE
-            Ajouter un article critique
+            Ajouter un article prioritaire
         FIN_TANT_QUE
     FIN_POUR
 
@@ -862,9 +959,9 @@ DEBUT
 FIN
 ```
 
-**Garantie :** `PLAFOND(occupation_totale)` assure mathématiquement 100% placement.
+**Garantie :** `ARRONDI_SUP(occupation_totale)` assure mathématiquement 100% placement.
 
-#### **RG09 - Algorithme Knapsack Multi-Contraintes**
+#### **RG07 - Algorithme Knapsack Multi-Contraintes**
 
 ```pseudocode
 ALGORITHME KnapsackMultiContraintes(articles_safe, cartons_existants)
@@ -903,11 +1000,11 @@ FIN
 ### 4.6 Critères d'Acceptation Module 3
 
 ```gherkin
-# CA-M3-001: Court-Circuit Critiques
-Given une liste d'articles CRITIQUE_A et CRITIQUE_B
+# CA-M3-001: Court-Circuit Prioritaires
+Given une liste d'articles CRITIQUE_A, CRITIQUE_B et URGENT_A
   And coefficients: TYPE_1=0.2, TYPE_2=0.25, TYPE_3=0.1
 When j'exécute l'algorithme d'optimisation
-Then tous les articles CRITIQUE_A/B sont placés à 100%
+Then tous les articles prioritaires sont placés à 100%
   And algorithme knapsack n'est PAS exécuté pour ces articles
 
 # CA-M3-002: Calcul Occupation URGENT_A
@@ -929,7 +1026,7 @@ Then quantité partielle possible est placée
 # CA-M3-004: Composition Complète
 Given articles de tous types (CRITIQUE_A/B, URGENT_A, URGENT_B, SAFE)
 When j'exécute l'optimisation
-Then Phase 1: Articles CRITIQUE traités en court-circuit
+Then Phase 1: Articles PRIORITAIRES (CRITIQUE_A/B + URGENT_A) traités en court-circuit
   And Phase 2: URGENT_B complètent cartons existants
   And Phase 3: SAFE optimisés par knapsack sur espace restant
   And Phase 4: Validation et rapport généré
@@ -1124,6 +1221,81 @@ graph TB
 | `importance_declarable` | Importance déclarables | 10 | Module 2 |
 
 ---
+
+## ✅ 7. Critères d'Acceptation Consolidés
+
+### Scénario E2E Complet
+
+```gherkin
+# CA-E2E-001: Flux Complet CRITIQUE_A
+Given un technicien avec:
+  - Shift 09h-19h (10h/jour)
+  - search_depth = 15 jours (12 ouvrables)
+  - Planning avec interventions SS/SAV
+  - Stock articles variés
+
+And un article CENTRALE SCANNABLE avec:
+  - stock_actuel = 2 unités
+  - stock_minimum = 5 unités
+  - colis en transit = 1 unité
+  - consommation prévue = 2 unités/jour
+
+When le système exécute le processus complet
+
+Then Module 1:
+  - stock_initial = 2 + 1 = 3 unités
+  - Imprev_Fact calculé selon heures libres
+  - Projection: J0:3 → J1:1 → J2:-1 → J3:-3 → ...
+
+And Module 2:
+  - UrQ = 100 (stock < min dès J0)
+  - UrT = 100 (rupture J2, fenêtre J0-J5)
+  - ImP = 100 (scannable)
+  - UrTT = 300
+  - Grade = CRITIQUE_A
+
+And Module 3:
+  - Article classifié en articles_critiques
+  - Traité en Phase 1 (court-circuit)
+  - Placé à 100% dans APP
+  - Aucun knapsack exécuté pour cet article
+
+And Résultat:
+  - Proposition APP créée
+  - Article CENTRALE inclus intégralement
+  - Cartons optimisés générés
+  - Métriques calculées
+```
+
+```gherkin
+# CA-E2E-002: Flux Complet COMPOSITION_COMPLETE
+Given un technicien avec articles de tous grades:
+  - 3 articles CRITIQUE_A (Centrales)
+  - 2 articles URGENT_B (Badges)
+  - 5 articles SAFE (Divers)
+
+When le système exécute le processus complet
+
+Then Phase 1:
+  - 3 articles CRITIQUE_A traités en court-circuit
+  - Cartons créés = PLAFOND(occupation_totale)
+  - 100% articles critiques placés
+
+And Phase 2:
+  - 2 articles URGENT_B complètent cartons existants
+  - Aucun nouveau carton créé
+  - Quantités partielles acceptées si nécessaire
+
+And Phase 3:
+  - 5 articles SAFE optimisés par knapsack
+  - Objectif (stock_min + stock_max) / 2
+  - Utilisation espace résiduel uniquement
+
+And Phase 4:
+  - Validation contraintes réussie
+  - Rapport généré avec métriques
+  - PackingResult retourné
+```
 
 ---
 
