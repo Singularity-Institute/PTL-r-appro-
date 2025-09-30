@@ -1381,6 +1381,31 @@ graph TB
 
 ---
 
+## 📋 6.7 Tableau Récapitulatif des Règles de Gestion
+
+| Numéro RG | Contenu de la Règle de Gestion |
+|-----------|--------------------------------|
+| **MODULE 1 : CALCUL DE BESOIN** | |
+| **M1-RG01** | **Calcul Stock Initial (J0)** : `stock_initial = stock_actuel + colis_en_transit + colis_pending`. Exclusions : guides, stickers, piles. |
+| **M1-RG02** | **Calcul de Besoin avec Facteur d'Imprévu** : `QTE_BRUTE_FINALE = ARRONDI_SUP(QTE_BRUTE × Imprev_Fact)` où `Imprev_Fact = 1 + (heures_libres / totale_heures_shift)`. Paramètre `search_depth` configurable (Consul). |
+| **M1-RG03** | **Projection Stock Jour par Jour** : `stock[jour] = stock[jour-1] - consommation_prevue[jour]`. Matrice de projection sur `search_depth` jours. |
+| **MODULE 2 : ÉVALUATION URGENCE** | |
+| **M2-RG1** | **Urgence Quantitative (UrQ)** : `UrQ = 100` si `stock_projection[jour] ≤ stock_min`, sinon `UrQ = 0`. Valeur finale = `MAX(UrQ[jour_1...jour_search_depth])`. |
+| **M2-RG2** | **Urgence Temporelle (UrT)** : `UrT = 100` si rupture J1-J5 (imminent), `UrT = 50` si rupture J6-J8 (modéré), `UrT = 0` si rupture J9-J10 ou pas de rupture. |
+| **M2-RG3** | **Importance du Matériel (ImP)** : `ImP = 100` pour scannables (utilisés quotidiennement), `ImP = 10` pour déclarables/consommables. |
+| **M2-RG4** | **Urgence Totale (UrTT)** : `UrTT = UrT + UrQ + ImP` si `UrT × UrQ ≠ 0`, sinon `UrTT = 0` (court-circuit). Résultats possibles : {0, 160, 210, 250, 300}. |
+| **M2-RG5** | **Classification Finale** : `CRITIQUE_A` (300), `URGENT_A` (250), `CRITIQUE_B` (210), `URGENT_B` (160), `SAFE` (0). |
+| **MODULE 3 : CORE MOTEUR OPTIMISATION** | |
+| **M3-RG01** | **Coefficient d'Occupation** : `Coefficient = 1 / Quantité_Max_Par_Carton`. Calcul nombre cartons : `Nombre_Cartons = ARRONDI_SUP(Σ(quantité × coefficient))`. |
+| **M3-RG02** | **Hiérarchie de Criticité** : `(CRITIQUE_A = CRITIQUE_B = URGENT_A) > URGENT_B > SAFE`. Traitement : Prioritaires (100% garanti) > URGENT_B (complétion) > SAFE (knapsack). |
+| **M3-RG03** | **Complétion URGENT_B avec Priorisation Intelligente** : Fonction de valorisation `CalculerValeurValorisationUrgentB` avec 3 facteurs : (1) Écart au `stock_min` (40%), (2) Efficacité occupation (30%), (3) Fréquence usage (30%). Tri par valeur décroissante avant placement. **SANS créer nouveaux cartons**. |
+| **M3-RG04** | **Optimisation SAFE (Knapsack)** : Calculer quantités requises pour atteindre `stock_cible = (stock_min + stock_max) / 2`. Appliquer algorithme Knapsack Multi-Contraintes sur espace résiduel. **SANS créer nouveaux cartons**. |
+| **M3-RG05** | **Fonction de Valorisation Stock (SAFE)** : Fonction composite avec 3 facteurs : (1) Écart au `stock_cible` (40%), (2) Efficacité occupation (30%), (3) Fréquence usage (30%). Priorise articles les plus loin du stock optimal. |
+| **M3-RG06** | **Algorithme TraiterArticlesPrioritaires** : Calculer `occupation_totale`, créer `PLAFOND(occupation_totale)` cartons, distribuer articles prioritaires (CRITIQUE_A/B + URGENT_A). **Garantie 100% placement**. |
+| **M3-RG07** | **Algorithme Knapsack Multi-Contraintes** : Programmation dynamique pour optimiser placement SAFE. Utilise `CalculerValeurValorisationStock` pour priorisation. Reconstruction solution optimale. |
+
+---
+
 ## 📚 7. Références et Liens
 
 ### Tickets Jira Associés
