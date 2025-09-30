@@ -823,6 +823,27 @@ FIN
 **Objectif :**
 Déterminer la valeur d'un article SAFE pour prioriser dans l'optimisation knapsack.
 
+### 🤔 Problématique du Knapsack
+
+Après les phases 1 et 2, il reste un **espace limité** dans les cartons. Tous les articles SAFE ne peuvent pas être placés. La fonction de valorisation détermine **quels articles SAFE prioriser**.
+
+**Situation typique après Phase 2 :**
+```
+Espace disponible restant :
+- Carton 1 : 30% libre
+- Carton 2 : 15% libre
+- Carton 3 : 40% libre
+
+Articles SAFE candidats :
+- Article A (Centrales) : coeff 0.5, stock 5/15 (cible), fréquence 80%
+- Article B (Badges) : coeff 0.1, stock 15/19 (cible), fréquence 30%
+- Article C (DO) : coeff 0.3, stock 3/10 (cible), fréquence 60%
+
+❓ Lequel prioriser ? On ne peut pas tout mettre !
+```
+
+### 📐 Fonction de Valorisation Composite
+
 **Algorithme :**
 ```pseudocode
 FONCTION CalculerValeurValorisationStock(article)
@@ -830,15 +851,15 @@ DEBUT
     stock_cible = (article.stock_min + article.stock_max) / 2
     stock_actuel = article.stock_actuel
 
-    // Facteur 1: Écart au stock cible (normalisé)
+    // Facteur 1: Écart au stock cible (normalisé) - 40%
     ecart_normalise = (stock_cible - stock_actuel) / stock_cible
     poids_ecart = 40.0
 
-    // Facteur 2: Efficacité d'occupation (favorise petits articles)
+    // Facteur 2: Efficacité d'occupation (favorise petits articles) - 30%
     efficacite_occupation = 1.0 / article.coefficient_occupation
     poids_efficacite = 30.0
 
-    // Facteur 3: Fréquence d'utilisation (si disponible en BDD)
+    // Facteur 3: Fréquence d'utilisation (si disponible en BDD) - 30%
     frequence_usage = ObtenirFrequenceUsage(article.type)  // 0.0 à 1.0
     poids_frequence = 30.0
 
@@ -851,10 +872,101 @@ DEBUT
 FIN
 ```
 
-**Justification des facteurs :**
-- **Écart au stock cible** : Plus l'article est loin de son stock optimal, plus il est prioritaire
-- **Efficacité d'occupation** : Favorise les petits articles pour maximiser la diversité
-- **Fréquence d'utilisation** : Articles fréquemment utilisés sont prioritaires
+### 🎯 Explication des 3 Facteurs
+
+#### **Facteur 1 : Écart au Stock Cible (40%)**
+
+**Formule :**
+```
+écart_normalisé = (stock_cible - stock_actuel) / stock_cible
+```
+
+**Exemple avec nos 3 articles :**
+```
+Article A (Centrales) : (15 - 5) / 15 = 0.67
+Article B (Badges)    : (19 - 15) / 19 = 0.21
+Article C (DO)        : (10 - 3) / 10 = 0.70
+```
+
+**Pourquoi 40% ?** Plus l'article est loin de son stock optimal, plus il est urgent de le réapprovisionner. C'est le critère le plus important (poids le plus élevé).
+
+#### **Facteur 2 : Efficacité d'Occupation (30%)**
+
+**Formule :**
+```
+efficacité = 1.0 / coefficient_occupation
+```
+
+**Exemple avec nos 3 articles :**
+```
+Article A (Centrales) : 1 / 0.5 = 2.0  (gros, peu efficace)
+Article B (Badges)    : 1 / 0.1 = 10.0 (petit, très efficace)
+Article C (DO)        : 1 / 0.3 = 3.3  (moyen)
+```
+
+**Pourquoi 30% ?** Favoriser les petits articles permet de mettre **plus de diversité** dans les cartons. Mieux vaut 5 types d'articles différents (même en petite quantité) que 2 types gros qui remplissent tout l'espace.
+
+**Exemple concret :**
+- Option 1 : Mettre 1 Centrale (occupe 50% d'un carton)
+- Option 2 : Mettre 1 DO + 2 Badges (occupe 50% mais 2 types différents)
+→ **Option 2 préférée** car plus de diversité
+
+#### **Facteur 3 : Fréquence d'Utilisation (30%)**
+
+**Formule :**
+```
+fréquence = nombre_utilisations_30_derniers_jours / total_interventions
+```
+
+**Exemple avec nos 3 articles :**
+```
+Article A (Centrales) : 80% des interventions = 0.8
+Article B (Badges)    : 30% des interventions = 0.3
+Article C (DO)        : 60% des interventions = 0.6
+```
+
+**Pourquoi 30% ?** Les articles fréquemment utilisés tournent vite et doivent être prioritaires. Un article utilisé dans 80% des interventions vs 30% a clairement plus d'impact opérationnel.
+
+### 💡 Exemple de Calcul Complet
+
+**Article A (Centrales) :**
+```
+Valeur_A = (0.67 × 40) + (2.0 × 30) + (0.8 × 30)
+        = 26.8 + 60 + 24
+        = 110.8 points
+```
+
+**Article B (Badges) :**
+```
+Valeur_B = (0.21 × 40) + (10.0 × 30) + (0.3 × 30)
+        = 8.4 + 300 + 9
+        = 317.4 points ← MAIS stock déjà au-dessus du min !
+```
+
+**Article C (DO) :**
+```
+Valeur_C = (0.70 × 40) + (3.3 × 30) + (0.6 × 30)
+        = 28 + 99 + 18
+        = 145 points ← GAGNANT si espace limité
+```
+
+**Résultat :** Article C (DO) est priorisé car :
+- ✅ Très loin du stock cible (70% d'écart)
+- ✅ Occupation raisonnable (coeff 0.3)
+- ✅ Bonne fréquence d'utilisation (60%)
+
+### 🔧 Alternatives de Valorisation
+
+La fonction composite (40%-30%-30%) est **paramétrable**. Voici d'autres stratégies possibles :
+
+| Stratégie | Facteur Principal | Cas d'Usage |
+|-----------|------------------|-------------|
+| **Besoin pur** | 100% écart stock cible | Prioriser uniquement le besoin quantitatif |
+| **Diversité max** | 100% efficacité occupation | Maximiser nombre de types d'articles différents |
+| **Rotation rapide** | 100% fréquence usage | Prioriser articles à forte rotation |
+| **Équilibrée** (recommandée) | 40%-30%-30% | Mix intelligent des 3 critères |
+
+**Note :** Les poids (40-30-30) peuvent être ajustés dans les paramètres Consul selon les priorités métier.
 
 #### **RG06 - Algorithme TraiterArticlesPrioritaires**
 
