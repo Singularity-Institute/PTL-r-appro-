@@ -811,30 +811,25 @@ DEBUT
     stock_min = article.stock_min
     stock_actuel = article.stock_actuel
 
-    // Facteur 1: Écart au stock minimum (normalisé) - 40%
+    // Facteur 1: Écart au stock minimum (normalisé) - 50%
     ecart_normalise = (stock_min - stock_actuel) / stock_min
-    poids_ecart = 40.0
+    poids_ecart = 50.0
 
-    // Facteur 2: Efficacité d'occupation (favorise petits articles) - 30%
+    // Facteur 2: Efficacité d'occupation (favorise petits articles) - 50%
     efficacite_occupation = 1.0 / article.coefficient_occupation
-    poids_efficacite = 30.0
-
-    // Facteur 3: Fréquence d'utilisation - 30%
-    frequence_usage = ObtenirFrequenceUsage(article.type)  // 0.0 à 1.0
-    poids_frequence = 30.0
+    poids_efficacite = 50.0
 
     // Calcul valeur composite
     valeur = (ecart_normalise × poids_ecart) +
-             (efficacite_occupation × poids_efficacite) +
-             (frequence_usage × poids_frequence)
+             (efficacite_occupation × poids_efficacite)
 
     RETOURNER valeur
 FIN
 ```
 
-### 🎯 Explication du Facteur 1 Adapté
+### 🎯 Explication des 2 Facteurs
 
-#### **Facteur 1 : Écart au Stock Minimum (40%)**
+#### **Facteur 1 : Écart au Stock Minimum (50%)**
 
 **Formule (différente de SAFE) :**
 ```
@@ -851,6 +846,24 @@ Article Z (Kits)   : (8 - 2) / 8 = 0.75   (très urgent !)
 **Pourquoi stock_min et pas stock_cible ?**
 Les articles URGENT_B sont en **rupture modérée J6-J8**. L'objectif est d'**éviter la rupture complète**, pas d'optimiser vers un stock idéal. On vise donc le minimum de sécurité.
 
+**Pourquoi 50% ?** L'écart au stock minimum est le critère le plus important car il mesure directement l'urgence de la rupture.
+
+#### **Facteur 2 : Efficacité d'Occupation (50%)**
+
+**Formule :**
+```
+efficacité = 1.0 / coefficient_occupation
+```
+
+**Exemple avec nos 3 articles URGENT_B :**
+```
+Article X (Câbles) : 1 / 0.2 = 5.0  (assez efficace)
+Article Y (Badges) : 1 / 0.1 = 10.0 (très efficace, petit)
+Article Z (Kits)   : 1 / 0.4 = 2.5  (peu efficace, gros)
+```
+
+**Pourquoi 50% ?** Favoriser les petits articles permet de mettre **plus de diversité** dans l'espace limité restant après Phase 1.
+
 **Comparaison URGENT_B vs SAFE :**
 ```
 Article Kits : stock_actuel = 2, stock_min = 8, stock_max = 20
@@ -866,31 +879,31 @@ SAFE     : écart = (14 - 2) / 14 = 0.86 (vise la cible 14)
 
 **Article X (Câbles) :**
 ```
-Valeur_X = (0.47 × 40) + (5.0 × 30) + (0.7 × 30)
-        = 18.8 + 150 + 21
-        = 189.8 points
+Valeur_X = (0.47 × 50) + (5.0 × 50)
+        = 23.5 + 250
+        = 273.5 points
 ```
 
 **Article Y (Badges) :**
 ```
-Valeur_Y = (0.60 × 40) + (10.0 × 30) + (0.4 × 30)
-        = 24 + 300 + 12
-        = 336 points ← Score élevé grâce à efficacité
+Valeur_Y = (0.60 × 50) + (10.0 × 50)
+        = 30 + 500
+        = 530 points ← GAGNANT grâce à efficacité + urgence
 ```
 
 **Article Z (Kits) :**
 ```
-Valeur_Z = (0.75 × 40) + (2.5 × 30) + (0.6 × 30)
-        = 30 + 75 + 18
-        = 123 points
+Valeur_Z = (0.75 × 50) + (2.5 × 50)
+        = 37.5 + 125
+        = 162.5 points
 ```
 
 **Résultat :** Article Y (Badges) est priorisé car :
 - ✅ Très loin du stock min (60% d'écart)
-- ✅ Très petit (coeff 0.1) → permet d'en mettre beaucoup
-- ✅ Mais Article Z a aussi un fort écart (75%) donc priorité 2
+- ✅ Très petit (coeff 0.1) → efficacité maximale (10.0)
+- ✅ Article Z a le plus fort écart (75%) mais pénalisé par sa taille
 
-**Stratégie :** Si espace limité, mettre des Badges (Y) puis des Kits (Z), puis Câbles (X).
+**Stratégie :** Si espace limité, mettre des Badges (Y) d'abord (530 pts), puis Câbles (X) (273.5 pts), puis Kits (Z) (162.5 pts).
 
 ### 🔄 Algorithme Complet de Complétion
 
@@ -1015,30 +1028,25 @@ DEBUT
     stock_cible = (article.stock_min + article.stock_max) / 2
     stock_actuel = article.stock_actuel
 
-    // Facteur 1: Écart au stock cible (normalisé) - 40%
+    // Facteur 1: Écart au stock cible (normalisé) - 50%
     ecart_normalise = (stock_cible - stock_actuel) / stock_cible
-    poids_ecart = 40.0
+    poids_ecart = 50.0
 
-    // Facteur 2: Efficacité d'occupation (favorise petits articles) - 30%
+    // Facteur 2: Efficacité d'occupation (favorise petits articles) - 50%
     efficacite_occupation = 1.0 / article.coefficient_occupation
-    poids_efficacite = 30.0
-
-    // Facteur 3: Fréquence d'utilisation (si disponible en BDD) - 30%
-    frequence_usage = ObtenirFrequenceUsage(article.type)  // 0.0 à 1.0
-    poids_frequence = 30.0
+    poids_efficacite = 50.0
 
     // Calcul valeur composite
     valeur = (ecart_normalise × poids_ecart) +
-             (efficacite_occupation × poids_efficacite) +
-             (frequence_usage × poids_frequence)
+             (efficacite_occupation × poids_efficacite)
 
     RETOURNER valeur
 FIN
 ```
 
-### 🎯 Explication des 3 Facteurs
+### 🎯 Explication des 2 Facteurs
 
-#### **Facteur 1 : Écart au Stock Cible (40%)**
+#### **Facteur 1 : Écart au Stock Cible (50%)**
 
 **Formule :**
 ```
@@ -1052,9 +1060,9 @@ Article B (Badges)    : (19 - 15) / 19 = 0.21
 Article C (DO)        : (10 - 3) / 10 = 0.70
 ```
 
-**Pourquoi 40% ?** Plus l'article est loin de son stock optimal, plus il est urgent de le réapprovisionner. C'est le critère le plus important (poids le plus élevé).
+**Pourquoi 50% ?** Plus l'article est loin de son stock optimal, plus il est urgent de le réapprovisionner. C'est le critère principal avec un poids égal à l'efficacité d'occupation.
 
-#### **Facteur 2 : Efficacité d'Occupation (30%)**
+#### **Facteur 2 : Efficacité d'Occupation (50%)**
 
 **Formule :**
 ```
@@ -1068,69 +1076,52 @@ Article B (Badges)    : 1 / 0.1 = 10.0 (petit, très efficace)
 Article C (DO)        : 1 / 0.3 = 3.3  (moyen)
 ```
 
-**Pourquoi 30% ?** Favoriser les petits articles permet de mettre **plus de diversité** dans les cartons. Mieux vaut 5 types d'articles différents (même en petite quantité) que 2 types gros qui remplissent tout l'espace.
+**Pourquoi 50% ?** Favoriser les petits articles permet de mettre **plus de diversité** dans les cartons. Mieux vaut 5 types d'articles différents (même en petite quantité) que 2 types gros qui remplissent tout l'espace. Ce critère a un poids égal à l'écart au stock cible.
 
 **Exemple concret :**
 - Option 1 : Mettre 1 Centrale (occupe 50% d'un carton)
 - Option 2 : Mettre 1 DO + 2 Badges (occupe 50% mais 2 types différents)
 → **Option 2 préférée** car plus de diversité
 
-#### **Facteur 3 : Fréquence d'Utilisation (30%)**
-
-**Formule :**
-```
-fréquence = nombre_utilisations_30_derniers_jours / total_interventions
-```
-
-**Exemple avec nos 3 articles :**
-```
-Article A (Centrales) : 80% des interventions = 0.8
-Article B (Badges)    : 30% des interventions = 0.3
-Article C (DO)        : 60% des interventions = 0.6
-```
-
-**Pourquoi 30% ?** Les articles fréquemment utilisés tournent vite et doivent être prioritaires. Un article utilisé dans 80% des interventions vs 30% a clairement plus d'impact opérationnel.
-
 ### 💡 Exemple de Calcul Complet
 
 **Article A (Centrales) :**
 ```
-Valeur_A = (0.67 × 40) + (2.0 × 30) + (0.8 × 30)
-        = 26.8 + 60 + 24
-        = 110.8 points
+Valeur_A = (0.67 × 50) + (2.0 × 50)
+        = 33.5 + 100
+        = 133.5 points
 ```
 
 **Article B (Badges) :**
 ```
-Valeur_B = (0.21 × 40) + (10.0 × 30) + (0.3 × 30)
-        = 8.4 + 300 + 9
-        = 317.4 points ← MAIS stock déjà au-dessus du min !
+Valeur_B = (0.21 × 50) + (10.0 × 50)
+        = 10.5 + 500
+        = 510.5 points ← GAGNANT (efficacité excellente)
 ```
 
 **Article C (DO) :**
 ```
-Valeur_C = (0.70 × 40) + (3.3 × 30) + (0.6 × 30)
-        = 28 + 99 + 18
-        = 145 points ← GAGNANT si espace limité
+Valeur_C = (0.70 × 50) + (3.3 × 50)
+        = 35 + 165
+        = 200 points
 ```
 
-**Résultat :** Article C (DO) est priorisé car :
-- ✅ Très loin du stock cible (70% d'écart)
-- ✅ Occupation raisonnable (coeff 0.3)
-- ✅ Bonne fréquence d'utilisation (60%)
+**Résultat :** Article B (Badges) est priorisé car :
+- ✅ Excellente efficacité d'occupation (coeff 0.1 = 10.0 points)
+- ✅ Permet de maximiser la diversité d'articles dans l'espace limité
+- ⚠️ Bien que l'écart soit faible (21%), l'efficacité compense largement
 
 ### 🔧 Alternatives de Valorisation
 
-La fonction composite (40%-30%-30%) est **paramétrable**. Voici d'autres stratégies possibles :
+La fonction composite (50%-50%) est **paramétrable**. Voici d'autres stratégies possibles :
 
 | Stratégie | Facteur Principal | Cas d'Usage |
 |-----------|------------------|-------------|
 | **Besoin pur** | 100% écart stock cible | Prioriser uniquement le besoin quantitatif |
 | **Diversité max** | 100% efficacité occupation | Maximiser nombre de types d'articles différents |
-| **Rotation rapide** | 100% fréquence usage | Prioriser articles à forte rotation |
-| **Équilibrée** (recommandée) | 40%-30%-30% | Mix intelligent des 3 critères |
+| **Équilibrée** (recommandée) | 50%-50% | Mix optimal des 2 critères (écart + efficacité) |
 
-**Note :** Les poids (40-30-30) peuvent être ajustés dans les paramètres Consul selon les priorités métier.
+**Note :** Les poids (50-50) peuvent être ajustés dans les paramètres Consul selon les priorités métier.
 
 #### **RG06 - Algorithme TraiterArticlesPrioritaires**
 
@@ -1398,9 +1389,9 @@ graph TB
 | **MODULE 3 : CORE MOTEUR OPTIMISATION** | |
 | **M3-RG01** | **Coefficient d'Occupation** : `Coefficient = 1 / Quantité_Max_Par_Carton`. Calcul nombre cartons : `Nombre_Cartons = ARRONDI_SUP(Σ(quantité × coefficient))`. |
 | **M3-RG02** | **Hiérarchie de Criticité** : `(CRITIQUE_A = CRITIQUE_B = URGENT_A) > URGENT_B > SAFE`. Traitement : Prioritaires (100% garanti) > URGENT_B (complétion) > SAFE (knapsack). |
-| **M3-RG03** | **Complétion URGENT_B avec Priorisation Intelligente** : Fonction de valorisation `CalculerValeurValorisationUrgentB` avec 3 facteurs : (1) Écart au `stock_min` (40%), (2) Efficacité occupation (30%), (3) Fréquence usage (30%). Tri par valeur décroissante avant placement. **SANS créer nouveaux cartons**. |
+| **M3-RG03** | **Complétion URGENT_B avec Priorisation Intelligente** : Fonction de valorisation `CalculerValeurValorisationUrgentB` avec 2 facteurs : (1) Écart au `stock_min` (50%), (2) Efficacité occupation (50%). Tri par valeur décroissante avant placement. **SANS créer nouveaux cartons**. |
 | **M3-RG04** | **Optimisation SAFE (Knapsack)** : Calculer quantités requises pour atteindre `stock_cible = (stock_min + stock_max) / 2`. Appliquer algorithme Knapsack Multi-Contraintes sur espace résiduel. **SANS créer nouveaux cartons**. |
-| **M3-RG05** | **Fonction de Valorisation Stock (SAFE)** : Fonction composite avec 3 facteurs : (1) Écart au `stock_cible` (40%), (2) Efficacité occupation (30%), (3) Fréquence usage (30%). Priorise articles les plus loin du stock optimal. |
+| **M3-RG05** | **Fonction de Valorisation Stock (SAFE)** : Fonction composite avec 2 facteurs : (1) Écart au `stock_cible` (50%), (2) Efficacité occupation (50%). Priorise articles les plus loin du stock optimal et favorise diversité dans l'espace limité. |
 | **M3-RG06** | **Algorithme TraiterArticlesPrioritaires** : Calculer `occupation_totale`, créer `PLAFOND(occupation_totale)` cartons, distribuer articles prioritaires (CRITIQUE_A/B + URGENT_A). **Garantie 100% placement**. |
 | **M3-RG07** | **Algorithme Knapsack Multi-Contraintes** : Programmation dynamique pour optimiser placement SAFE. Utilise `CalculerValeurValorisationStock` pour priorisation. Reconstruction solution optimale. |
 
