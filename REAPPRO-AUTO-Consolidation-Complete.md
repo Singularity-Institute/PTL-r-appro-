@@ -774,21 +774,185 @@ Nombre de cartons = ARRONDI_SUP(4.4) = 5 cartons
 
 **Note Lot 2 :** Possibilité de knapsack complet sans garantie 100% critiques (avec justifications).
 
-#### **RG03 - Complétion URGENT_B**
+#### **RG03 - Complétion URGENT_B avec Priorisation Intelligente**
 
 **Principe :**
-Après inclusion des critiques, compléter avec URGENT_B **SANS créer de nouveaux cartons**.
+Après inclusion des articles prioritaires (Phase 1), compléter avec URGENT_B **SANS créer de nouveaux cartons**. Comme l'espace est limité, une fonction de valorisation détermine quels articles URGENT_B prioriser.
+
+### 🤔 Problématique de la Complétion URGENT_B
+
+Après Phase 1, il reste un **espace limité** dans les cartons. Tous les articles URGENT_B ne peuvent pas forcément être placés. La fonction de valorisation détermine **quels articles URGENT_B prioriser**.
+
+**Situation typique après Phase 1 :**
+```
+Espace disponible restant :
+- Carton 1 : 25% libre
+- Carton 2 : 10% libre
+- Carton 3 : 35% libre
+
+Articles URGENT_B candidats (tous en rupture J6-J8) :
+- Article X (Câbles) : coeff 0.2, stock 8/15 (min), fréquence 70%
+- Article Y (Badges) : coeff 0.1, stock 4/10 (min), fréquence 40%
+- Article Z (Kits) : coeff 0.4, stock 2/8 (min), fréquence 60%
+
+❓ Lequel prioriser pour éviter la rupture ?
+```
+
+### 📐 Fonction de Valorisation URGENT_B
+
+**Différence clé avec SAFE :**
+- **URGENT_B** : Objectif = atteindre `stock_min` (éviter la rupture imminente J6-J8)
+- **SAFE** : Objectif = atteindre `stock_cible = (min + max) / 2` (optimiser vers l'idéal)
 
 **Algorithme :**
 ```pseudocode
-POUR chaque article_urgent_b FAIRE
-    POUR chaque carton DANS cartons_existants FAIRE
-        SI carton.peutAccueillir(article_urgent_b) ALORS
-            quantite_possible = PLANCHER(carton.capacite_restante / article.coefficient)
-            carton.ajouterArticle(article_urgent_b, MIN(quantite_possible, quantite_restante))
+FONCTION CalculerValeurValorisationUrgentB(article)
+DEBUT
+    stock_min = article.stock_min
+    stock_actuel = article.stock_actuel
+
+    // Facteur 1: Écart au stock minimum (normalisé) - 40%
+    ecart_normalise = (stock_min - stock_actuel) / stock_min
+    poids_ecart = 40.0
+
+    // Facteur 2: Efficacité d'occupation (favorise petits articles) - 30%
+    efficacite_occupation = 1.0 / article.coefficient_occupation
+    poids_efficacite = 30.0
+
+    // Facteur 3: Fréquence d'utilisation - 30%
+    frequence_usage = ObtenirFrequenceUsage(article.type)  // 0.0 à 1.0
+    poids_frequence = 30.0
+
+    // Calcul valeur composite
+    valeur = (ecart_normalise × poids_ecart) +
+             (efficacite_occupation × poids_efficacite) +
+             (frequence_usage × poids_frequence)
+
+    RETOURNER valeur
+FIN
+```
+
+### 🎯 Explication du Facteur 1 Adapté
+
+#### **Facteur 1 : Écart au Stock Minimum (40%)**
+
+**Formule (différente de SAFE) :**
+```
+écart_normalisé = (stock_min - stock_actuel) / stock_min
+```
+
+**Exemple avec nos 3 articles URGENT_B :**
+```
+Article X (Câbles) : (15 - 8) / 15 = 0.47  (moyennement urgent)
+Article Y (Badges) : (10 - 4) / 10 = 0.60  (plus urgent)
+Article Z (Kits)   : (8 - 2) / 8 = 0.75   (très urgent !)
+```
+
+**Pourquoi stock_min et pas stock_cible ?**
+Les articles URGENT_B sont en **rupture modérée J6-J8**. L'objectif est d'**éviter la rupture complète**, pas d'optimiser vers un stock idéal. On vise donc le minimum de sécurité.
+
+**Comparaison URGENT_B vs SAFE :**
+```
+Article Kits : stock_actuel = 2, stock_min = 8, stock_max = 20
+
+URGENT_B : écart = (8 - 2) / 8 = 0.75 (vise le min)
+SAFE     : écart = (14 - 2) / 14 = 0.86 (vise la cible 14)
+
+→ URGENT_B est plus tolérant, vise juste éviter la rupture
+→ SAFE est plus exigeant, vise l'optimum
+```
+
+### 💡 Exemple de Calcul Complet
+
+**Article X (Câbles) :**
+```
+Valeur_X = (0.47 × 40) + (5.0 × 30) + (0.7 × 30)
+        = 18.8 + 150 + 21
+        = 189.8 points
+```
+
+**Article Y (Badges) :**
+```
+Valeur_Y = (0.60 × 40) + (10.0 × 30) + (0.4 × 30)
+        = 24 + 300 + 12
+        = 336 points ← Score élevé grâce à efficacité
+```
+
+**Article Z (Kits) :**
+```
+Valeur_Z = (0.75 × 40) + (2.5 × 30) + (0.6 × 30)
+        = 30 + 75 + 18
+        = 123 points
+```
+
+**Résultat :** Article Y (Badges) est priorisé car :
+- ✅ Très loin du stock min (60% d'écart)
+- ✅ Très petit (coeff 0.1) → permet d'en mettre beaucoup
+- ✅ Mais Article Z a aussi un fort écart (75%) donc priorité 2
+
+**Stratégie :** Si espace limité, mettre des Badges (Y) puis des Kits (Z), puis Câbles (X).
+
+### 🔄 Algorithme Complet de Complétion
+
+```pseudocode
+ALGORITHME CompleterAvecUrgentB(cartons_existants, articles_urgent_b)
+DEBUT
+    // 1. Calculer les valeurs de priorisation
+    POUR CHAQUE article DANS articles_urgent_b FAIRE
+        article.valeur = CalculerValeurValorisationUrgentB(article)
+    FIN_POUR
+
+    // 2. Trier par valeur décroissante (plus urgent en premier)
+    TRIER articles_urgent_b PAR valeur DÉCROISSANT
+
+    // 3. Placer dans l'espace disponible
+    POUR CHAQUE article DANS articles_urgent_b FAIRE
+        quantite_restante = article.quantite_a_placer
+
+        POUR CHAQUE carton DANS cartons_existants FAIRE
+            SI carton.peutAccueillir(article) ET quantite_restante > 0 ALORS
+                capacite_restante = carton.getCapaciteRestante()
+                quantite_possible = PLANCHER(capacite_restante / article.coefficient)
+                quantite_a_ajouter = MIN(quantite_possible, quantite_restante)
+
+                carton.ajouterArticle(article, quantite_a_ajouter)
+                quantite_restante = quantite_restante - quantite_a_ajouter
+            FIN_SI
+        FIN_POUR
+
+        // Note : quantite_restante peut être > 0 si espace insuffisant
+        SI quantite_restante > 0 ALORS
+            LoggerPlacementPartiel(article, quantite_restante)
         FIN_SI
     FIN_POUR
-FIN_POUR
+
+    RETOURNER cartons_existants
+FIN
+```
+
+### 📊 Comparaison URGENT_B vs SAFE
+
+| Critère | URGENT_B (Phase 2) | SAFE (Phase 3) |
+|---------|-------------------|---------------|
+| **Objectif stock** | `stock_min` | `(stock_min + stock_max) / 2` |
+| **Urgence métier** | Rupture J6-J8 (modérée) | Pas de rupture (optimisation) |
+| **Priorité placement** | Haute (après critiques) | Basse (espace résiduel) |
+| **Quantités partielles** | Acceptées | Acceptées |
+| **Création nouveaux cartons** | ❌ Non | ❌ Non |
+| **Facteur 1 (écart)** | Distance au stock_min | Distance au stock_cible |
+| **Impact opérationnel** | Critique (éviter rupture) | Confort (stock optimal) |
+
+**Exemple concret :**
+```
+Article : stock_actuel = 5, stock_min = 10, stock_max = 30
+
+En URGENT_B (rupture J7) :
+- Écart = (10 - 5) / 10 = 0.50
+- Objectif : placer 5 unités pour atteindre 10 (le minimum)
+
+En SAFE (pas de rupture) :
+- Écart = (20 - 5) / 20 = 0.75
+- Objectif : placer 15 unités pour atteindre 20 (l'optimal)
 ```
 
 #### **RG04 - Optimisation SAFE (Knapsack)**
