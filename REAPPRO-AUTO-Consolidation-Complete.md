@@ -1288,21 +1288,20 @@ graph TD
 
 ### 8.6 ROI & Impact Business
 
-```mermaid
-quadrantChart
-    title Impact Business vs Complexité Implémentation
-    x-axis Faible Complexité --> Forte Complexité
-    y-axis Faible Impact --> Fort Impact
-    quadrant-1 Quick Wins (Priorité 1)
-    quadrant-2 Projets Stratégiques
-    quadrant-3 À Éviter
-    quadrant-4 Optimisations Futures
-    Module 1 - Calcul Besoin: [0.6, 0.9]
-    Module 2 - Évaluation Urgence: [0.4, 0.85]
-    Module 3 - Optimisation: [0.75, 0.95]
-    Intégration GBH/ORG: [0.3, 0.7]
-    Reporting & Métriques: [0.25, 0.6]
-```
+**Matrice Impact vs Complexité :**
+
+| Module | Complexité | Impact Business | Catégorie |
+|--------|-----------|-----------------|-----------|
+| **Module 2 - Évaluation Urgence** | ⭐⭐ Moyenne | ⭐⭐⭐⭐⭐ Très Fort | 🎯 Quick Win |
+| **Module 1 - Calcul Besoin** | ⭐⭐⭐ Élevée | ⭐⭐⭐⭐⭐ Très Fort | 🎯 Quick Win |
+| **Intégration GBH/ORG** | ⭐ Faible | ⭐⭐⭐⭐ Fort | 🎯 Quick Win |
+| **Module 3 - Optimisation** | ⭐⭐⭐⭐ Très Élevée | ⭐⭐⭐⭐⭐ Très Fort | 🚀 Stratégique |
+| **Reporting & Métriques** | ⭐ Faible | ⭐⭐⭐ Moyen | 🔧 Optimisation Future |
+
+**Stratégie de déploiement recommandée :**
+1. **Phase 1 (Quick Wins)** : Module 2 → Module 1 → Intégration GBH/ORG
+2. **Phase 2 (Stratégique)** : Module 3 avec optimisation avancée
+3. **Phase 3 (Amélioration)** : Reporting & Métriques avancées
 
 **Gains estimés (annuels) :**
 - 💰 **Réduction coûts transport** : -25% (moins de colis)
