@@ -251,40 +251,6 @@ J6 = 15 - 5 = 10
 J7 = 10 - 1 = 9
 ```
 
-### 2.4 Critères d'Acceptation Module 1
-
-```gherkin
-# CA-M1-001: Paramètre search_depth
-Given le Module de calcul de besoin configuré
-  And le paramètre search_depth = 15 jours
-When le calcul est lancé
-Then le système analyse les plannings sur 15 jours
-  And seuls les jours ouvrables sont pris en compte
-
-# CA-M1-002: Facteur d'Imprévu
-Given un technicien avec shift 09h-19h (10h/jour)
-  And search_depth = 15 jours (12 jours ouvrables)
-  And heures_shift_totales = 120h
-  And heures_libres_continues ≥ 1h = 24h détectées
-When Imprev_Fact est calculé
-Then Imprev_Fact = 1 + (24/120) = 1.2
-
-# CA-M1-003: Stock Initial avec Transit
-Given un Article_Type avec stock_actuel = 10 unités
-  And un colis en transit avec 5 unités
-When l'initialisation du stock est effectuée
-Then stock_initial = 15 unités
-  And stock_projection[Article_Type][0] = 15
-
-# CA-M1-004: Projection Stock
-Given un Article_Type avec stock_initial = 25 unités
-  And consommation_prevue = [3, 1, 4, 2, 0, 5, 1]
-When la projection sur 7 jours est effectuée
-Then stock_projection[1] = 22
-  And stock_projection[2] = 21
-  And stock_projection[7] = 9
-```
-
 ---
 
 ## 🚨 3. MODULE 2 : Évaluation d'Urgence
@@ -519,58 +485,6 @@ FIN
 | **CRITIQUE_B** | 210 | 100 | 100 | 10 | Déclarable/Consommable rupture J0-J5 |
 | **URGENT_B** | 160 | 50 | 100 | 10 | Déclarable/Consommable rupture J6-J8 |
 | **SAFE** | 0 | - | - | - | Court-circuit activé (pas de criticité) |
-
-### 3.5 Critères d'Acceptation Module 2
-
-```gherkin
-# CA-M2-001: Urgence Critique - CENTRALE SCANNABLE
-Given un article CENTRALE SCANNABLE
-  And stock_actuel = 4, stock_minimum = 3
-  And consommation = 1 unité/jour
-  And projection: J0:4 → J1:3 → J2:2 → ... → J10:-6
-  And importance = 100
-When le système calcule l'urgence
-Then UrQ = 100 (stock < min dès J0)
-  And UrT = 100 (première rupture J2, horizon J0-J5)
-  And UrTT = 100 + 100 + 100 = 300
-  And classification = CRITIQUE_GRADE_A
-
-# CA-M2-002: Urgence Modérée - BADGES DÉCLARABLE
-Given un article BADGES DÉCLARABLE
-  And stock_actuel = 15, stock_minimum = 10
-  And consommation = 1 unité/jour
-  And projection: J0:15 → ... → J6:9 → J7:8 → ... → J10:5
-  And importance = 10
-When le système calcule l'urgence
-Then UrQ = 100 (stock < min à partir J6)
-  And UrT = 50 (première rupture J6, horizon J6-J8)
-  And UrTT = 50 + 100 + 10 = 160
-  And classification = URGENT_GRADE_B
-
-# CA-M2-003: Aucune Urgence - Stock Suffisant
-Given un article BADGES DÉCLARABLE
-  And stock_actuel = 50, stock_minimum = 20
-  And consommation = 2 unités/jour
-  And projection: J0:50 → J1:48 → ... → J10:30
-  And importance = 10
-When le système calcule l'urgence
-Then UrQ = 0 (stock toujours > minimum)
-  And UrT = 0 (pas de rupture prévue)
-  And UrTT = 0 (court-circuit appliqué)
-  And classification = SAFE
-
-# CA-M2-004: URGENT_GRADE_A - DO SCANNABLE
-Given un article DO SCANNABLE
-  And stock_actuel = 8, stock_minimum = 5
-  And consommation = 1 unité/jour
-  And projection: J0:8 → J1:7 → J2:6 → J3:5 → J4:4
-  And importance = 100
-When le système calcule l'urgence
-Then UrQ = 100 (stock < min à partir J4)
-  And UrT = 50 (rupture J4, horizon J6-J8)
-  And UrTT = 50 + 100 + 100 = 250
-  And classification = URGENT_GRADE_A
-```
 
 ---
 
@@ -997,41 +911,6 @@ DEBUT
 FIN
 ```
 
-### 4.6 Critères d'Acceptation Module 3
-
-```gherkin
-# CA-M3-001: Court-Circuit Prioritaires
-Given une liste d'articles CRITIQUE_A, CRITIQUE_B et URGENT_A
-  And coefficients: TYPE_1=0.2, TYPE_2=0.25, TYPE_3=0.1
-When j'exécute l'algorithme d'optimisation
-Then tous les articles prioritaires sont placés à 100%
-  And algorithme knapsack n'est PAS exécuté pour ces articles
-
-# CA-M3-002: Calcul Occupation URGENT_A
-Given 50 unités URGENT_A de TYPE_1 (coeff 0.2)
-When j'exécute l'optimisation
-Then occupation_requise = 50 × 0.2 = 10.0
-  And nombre_cartons = PLAFOND(10.0) = 10 cartons
-  And traitement utilise court-circuit
-
-# CA-M3-003: Quantités Partielles URGENT_B
-Given des articles URGENT_B à placer
-  And tous les cartons ont occupation ≥ 95%
-  And aucun carton avec capacité pour quantité totale
-When j'exécute l'optimisation
-Then quantité partielle possible est placée
-  And aucun nouveau carton n'est créé
-  And résultat indique quantités partielles acceptées
-
-# CA-M3-004: Composition Complète
-Given articles de tous types (CRITIQUE_A/B, URGENT_A, URGENT_B, SAFE)
-When j'exécute l'optimisation
-Then Phase 1: Articles PRIORITAIRES (CRITIQUE_A/B + URGENT_A) traités en court-circuit
-  And Phase 2: URGENT_B complètent cartons existants
-  And Phase 3: SAFE optimisés par knapsack sur espace restant
-  And Phase 4: Validation et rapport généré
-```
-
 ---
 
 ## 🏗️ 5. Architecture Globale
@@ -1222,84 +1101,7 @@ graph TB
 
 ---
 
-## ✅ 7. Critères d'Acceptation Consolidés
-
-### Scénario E2E Complet
-
-```gherkin
-# CA-E2E-001: Flux Complet CRITIQUE_A
-Given un technicien avec:
-  - Shift 09h-19h (10h/jour)
-  - search_depth = 15 jours (12 ouvrables)
-  - Planning avec interventions SS/SAV
-  - Stock articles variés
-
-And un article CENTRALE SCANNABLE avec:
-  - stock_actuel = 2 unités
-  - stock_minimum = 5 unités
-  - colis en transit = 1 unité
-  - consommation prévue = 2 unités/jour
-
-When le système exécute le processus complet
-
-Then Module 1:
-  - stock_initial = 2 + 1 = 3 unités
-  - Imprev_Fact calculé selon heures libres
-  - Projection: J0:3 → J1:1 → J2:-1 → J3:-3 → ...
-
-And Module 2:
-  - UrQ = 100 (stock < min dès J0)
-  - UrT = 100 (rupture J2, fenêtre J0-J5)
-  - ImP = 100 (scannable)
-  - UrTT = 300
-  - Grade = CRITIQUE_A
-
-And Module 3:
-  - Article classifié en articles_critiques
-  - Traité en Phase 1 (court-circuit)
-  - Placé à 100% dans APP
-  - Aucun knapsack exécuté pour cet article
-
-And Résultat:
-  - Proposition APP créée
-  - Article CENTRALE inclus intégralement
-  - Cartons optimisés générés
-  - Métriques calculées
-```
-
-```gherkin
-# CA-E2E-002: Flux Complet COMPOSITION_COMPLETE
-Given un technicien avec articles de tous grades:
-  - 3 articles CRITIQUE_A (Centrales)
-  - 2 articles URGENT_B (Badges)
-  - 5 articles SAFE (Divers)
-
-When le système exécute le processus complet
-
-Then Phase 1:
-  - 3 articles CRITIQUE_A traités en court-circuit
-  - Cartons créés = PLAFOND(occupation_totale)
-  - 100% articles critiques placés
-
-And Phase 2:
-  - 2 articles URGENT_B complètent cartons existants
-  - Aucun nouveau carton créé
-  - Quantités partielles acceptées si nécessaire
-
-And Phase 3:
-  - 5 articles SAFE optimisés par knapsack
-  - Objectif (stock_min + stock_max) / 2
-  - Utilisation espace résiduel uniquement
-
-And Phase 4:
-  - Validation contraintes réussie
-  - Rapport généré avec métriques
-  - PackingResult retourné
-```
-
----
-
-## 📚 8. Références et Liens
+## 📚 7. Références et Liens
 
 ### Tickets Jira Associés
 
@@ -1328,6 +1130,185 @@ And Phase 4:
 | **Imprev_Fact** | Facteur d'imprévu planification |
 | **Court-circuit** | Bypass knapsack pour critiques |
 | **Knapsack** | Algorithme optimisation contrainte |
+
+---
+
+## 🎯 8. Vue Synthétique pour Management
+
+### 8.1 Vision d'Ensemble du Système
+
+Le système de réapprovisionnement automatique garantit que chaque technicien dispose du matériel nécessaire au bon moment, tout en minimisant les coûts logistiques.
+
+```mermaid
+graph LR
+    subgraph "INPUT 📥"
+        A[Planning<br/>Technicien]
+        B[Stock<br/>Actuel]
+        C[Colis en<br/>Transit]
+    end
+
+    subgraph "PROCESSUS INTELLIGENT 🧠"
+        D[📊 MODULE 1<br/>Calcul Besoins<br/>Futurs]
+        E[🚨 MODULE 2<br/>Évaluation<br/>Urgences]
+        F[🎯 MODULE 3<br/>Optimisation<br/>Colis]
+    end
+
+    subgraph "OUTPUT 📤"
+        G[Proposition APP<br/>Optimisée]
+    end
+
+    A --> D
+    B --> D
+    C --> D
+    D --> E
+    E --> F
+    F --> G
+
+    style D fill:#e1f5fe
+    style E fill:#fff8e1
+    style F fill:#e8f5e9
+    style G fill:#c8e6c9
+```
+
+### 8.2 Valeur Métier du Système
+
+```mermaid
+mindmap
+  root((Système<br/>Réappro<br/>Auto))
+    **Bénéfices Opérationnels**
+      Zéro rupture matériel critique
+      Techniciens toujours équipés
+      Anticipation 15 jours
+    **Bénéfices Économiques**
+      Réduction nombre colis
+      Optimisation transport
+      Moins de surstockage
+    **Bénéfices Qualité**
+      Décisions data-driven
+      Traçabilité complète
+      Métriques en temps réel
+    **Bénéfices Stratégiques**
+      Satisfaction client
+      Performance techniciens
+      Agilité logistique
+```
+
+### 8.3 Fonctionnement en 3 Étapes
+
+```mermaid
+flowchart TB
+    START([🎬 Déclenchement pour<br/>un Technicien]) --> M1
+
+    subgraph STEP1["<b>ÉTAPE 1: PRÉVISION DES BESOINS</b> 📊"]
+        M1[Analyse du planning<br/>sur 15 jours]
+        M1 --> M2[Calcul consommation<br/>prévisionnelle]
+        M2 --> M3[Intègre facteur<br/>d'imprévu]
+        M3 --> M4[Projection stock<br/>jour par jour]
+    end
+
+    M4 --> S2
+
+    subgraph STEP2["<b>ÉTAPE 2: PRIORISATION INTELLIGENTE</b> 🚨"]
+        S2[Détection des ruptures<br/>de stock futures]
+        S2 --> S3{Rupture<br/>détectée ?}
+        S3 -->|Oui| S4[Classification par<br/>niveau d'urgence]
+        S3 -->|Non| S5[Article SAFE]
+        S4 --> S6[CRITIQUE_A: 300 pts<br/>Scannable J0-J5]
+        S4 --> S7[URGENT_A: 250 pts<br/>Scannable J6-J8]
+        S4 --> S8[CRITIQUE_B: 210 pts<br/>Déclarable J0-J5]
+        S4 --> S9[URGENT_B: 160 pts<br/>Déclarable J6-J8]
+    end
+
+    S6 --> STEP3
+    S7 --> STEP3
+    S8 --> STEP3
+    S9 --> STEP3
+    S5 --> STEP3
+
+    subgraph STEP3["<b>ÉTAPE 3: OPTIMISATION COLIS</b> 🎯"]
+        O1[Phase 1<br/>Articles PRIORITAIRES<br/>100% garantis]
+        O1 --> O2[Phase 2<br/>Complétion URGENT_B<br/>si espace disponible]
+        O2 --> O3[Phase 3<br/>Optimisation SAFE<br/>algorithme knapsack]
+        O3 --> O4[Validation &<br/>Génération rapport]
+    end
+
+    O4 --> END([✅ Proposition APP<br/>Optimisée])
+
+    style STEP1 fill:#e1f5fe
+    style STEP2 fill:#fff8e1
+    style STEP3 fill:#e8f5e9
+    style S6 fill:#ffcdd2
+    style S7 fill:#ffccbc
+    style S8 fill:#ffe0b2
+    style S9 fill:#fff9c4
+    style END fill:#c8e6c9
+```
+
+### 8.4 Système de Priorisation
+
+```mermaid
+graph TD
+    START[Article à<br/>réapprovisionner] --> EVAL{Évaluation<br/>Urgence}
+
+    EVAL -->|UrTT=300| CRIT_A[🔴 CRITIQUE_A<br/>Scannable<br/>Rupture J0-J5]
+    EVAL -->|UrTT=250| URG_A[🟠 URGENT_A<br/>Scannable<br/>Rupture J6-J8]
+    EVAL -->|UrTT=210| CRIT_B[🟡 CRITIQUE_B<br/>Déclarable<br/>Rupture J0-J5]
+    EVAL -->|UrTT=160| URG_B[🟢 URGENT_B<br/>Déclarable<br/>Rupture J6-J8]
+    EVAL -->|UrTT=0| SAFE[⚪ SAFE<br/>Pas de rupture<br/>prévue]
+
+    CRIT_A --> TREAT1[Traitement:<br/>Court-circuit<br/>100% garanti]
+    URG_A --> TREAT1
+    CRIT_B --> TREAT1
+
+    URG_B --> TREAT2[Traitement:<br/>Complétion<br/>Si espace dispo]
+
+    SAFE --> TREAT3[Traitement:<br/>Optimisation<br/>Knapsack]
+
+    TREAT1 --> RESULT[Proposition APP]
+    TREAT2 --> RESULT
+    TREAT3 --> RESULT
+
+    style CRIT_A fill:#ff6b6b,color:#fff
+    style URG_A fill:#ffa07a
+    style CRIT_B fill:#ffd93d
+    style URG_B fill:#95e1d3
+    style SAFE fill:#e0e0e0
+    style RESULT fill:#4caf50,color:#fff
+```
+
+### 8.5 Métriques Clés & Indicateurs de Performance
+
+| Indicateur | Description | Objectif |
+|------------|-------------|----------|
+| **Taux de Rupture** | % articles critiques en rupture | **0%** |
+| **Taux d'Optimisation** | Réduction nombre colis vs. baseline | **-30%** |
+| **Taux de Remplissage** | Occupation moyenne des cartons | **> 85%** |
+| **Anticipation Moyenne** | Jours d'avance détection rupture | **> 5 jours** |
+| **Précision Prévision** | Écart consommation réelle vs. prévue | **< 15%** |
+
+### 8.6 ROI & Impact Business
+
+```mermaid
+quadrantChart
+    title Impact Business vs Complexité Implémentation
+    x-axis Faible Complexité --> Forte Complexité
+    y-axis Faible Impact --> Fort Impact
+    quadrant-1 Quick Wins (Priorité 1)
+    quadrant-2 Projets Stratégiques
+    quadrant-3 À Éviter
+    quadrant-4 Optimisations Futures
+    Module 1 - Calcul Besoin: [0.6, 0.9]
+    Module 2 - Évaluation Urgence: [0.4, 0.85]
+    Module 3 - Optimisation: [0.75, 0.95]
+    Intégration GBH/ORG: [0.3, 0.7]
+    Reporting & Métriques: [0.25, 0.6]
+```
+
+**Gains estimés (annuels) :**
+- 💰 **Réduction coûts transport** : -25% (moins de colis)
+- ⏱️ **Gain productivité techniciens** : +15% (moins d'arrêts matériel)
+- 📉 **Réduction stock immobilisé** : -20% (juste nécessaire)
+- 🎯 **Amélioration satisfaction client** : +30% (interventions réussies)
 
 ---
 
