@@ -506,11 +506,11 @@ flowchart TD
     INPUT[📋 Articles Classifiés par Grade] --> INIT[🎯 Initialisation Context]
 
     INIT --> CLASS[📊 Classification Articles]
-    CLASS --> CRIT[🔴 articles_critiques]
+    CLASS --> PRIO[🔴 articles_prioritaires<br/>CRITIQUE_A/B + URGENT_A]
     CLASS --> URG[🟠 articles_urgent_b]
     CLASS --> SAFE[🟢 articles_safe]
 
-    CRIT --> STRAT{Quelle Stratégie ?}
+    PRIO --> STRAT{Quelle Stratégie ?}
     URG --> STRAT
     SAFE --> STRAT
 
@@ -518,26 +518,32 @@ flowchart TD
     STRAT -->|Lot2| LOT2[📦 Stratégie Lot2]
     STRAT -->|Lot3| LOT3[🎯 Stratégie Lot3]
 
-    DEFAULT --> ANALYZE{🔍 Analyser Composition}
+    DEFAULT --> ANALYZE{🔍 Analyser Composition<br/>Articles SAFE présents ?}
 
-    ANALYZE -->|Complete| P1[🚨 Phase 1: Court-Circuit Critiques]
-    ANALYZE -->|Critiques Only| P1
-    ANALYZE -->|Critiques+UrgB| P1
-    ANALYZE -->|UrgB+Safe| P2B[⚡ Phase 2B: Traiter UrgentB]
-    ANALYZE -->|Safe Only| EMPTY[❌ Liste Vide]
+    ANALYZE -->|COMPOSITION_COMPLETE<br/>Prio+UrgB+Safe| P1[🚨 Phase 1: Prioritaires]
+    ANALYZE -->|PRIORITAIRES_ET_SAFE<br/>Prio+Safe| P1A[🚨 Phase 1: Prioritaires]
+    ANALYZE -->|URGENT_B_ET_SAFE<br/>UrgB+Safe| P2B[⚡ Phase 1: UrgentB]
+    ANALYZE -->|SAFE_SEULEMENT<br/>ou Aucun SAFE| EMPTY[❌ Pas de proposition]
 
-    P1 --> P2[⚡ Phase 2: Complétion URGENT_B]
-    P2 --> P3[🎯 Phase 3: Knapsack SAFE]
-    P2B --> P3
+    P1 --> P2[⚡ Phase 2: Complétion URGENT_B<br/>si espace dispo]
+    P1A --> P3A[🎯 Phase 2: Knapsack SAFE<br/>si espace dispo]
+    P2 --> P3[🎯 Phase 3: Knapsack SAFE<br/>si espace dispo]
+    P2B --> P3B[🎯 Phase 2: Knapsack SAFE<br/>si espace dispo]
 
-    P3 --> P4[✅ Phase 4: Validation]
+    P3 --> P4[✅ Validation & Rapport]
+    P3A --> P4
+    P3B --> P4
     EMPTY --> P4
 
     P4 --> RESULT[📦 PackingResult Final]
 
     style P1 fill:#ffcccb
+    style P1A fill:#ffcccb
     style P2 fill:#fff8dc
+    style P2B fill:#fff8dc
     style P3 fill:#d4f1d4
+    style P3A fill:#d4f1d4
+    style P3B fill:#d4f1d4
     style P4 fill:#e0e0ff
     style EMPTY fill:#f5f5f5
 ```
@@ -658,27 +664,21 @@ DEBUT
         CAS "COMPOSITION_COMPLETE":
             // Phase 1: Articles prioritaires (CRITIQUE_A/B + URGENT_A)
             cartons_resultats ← TraiterArticlesPrioritaires(articles_prioritaires)
-            // Phase 2
+            // Phase 2: S'il y a de l'espace dispo restant à l'issue de la phase 1
             cartons_resultats ← CompleterAvecUrgentB(cartons_resultats, articles_urgent_b)
-            // Phase 3
+            // Phase 3: S'il y a de l'espace dispo restant à l'issue de la phase 2 (Knapsack)
             cartons_resultats ← OptimiserAvecSafe(cartons_resultats, articles_safe)
 
-        CAS "PRIORITAIRES_SEULEMENT":
-            cartons_resultats ← TraiterArticlesPrioritaires(articles_prioritaires)
-
-        CAS "URGENT_B_SEULEMENT":
-            cartons_resultats ← TraiterArticlesUrgentB(articles_urgent_b)
-
-        CAS "PRIORITAIRES_ET_URGENT_B":
-            cartons_resultats ← TraiterArticlesPrioritaires(articles_prioritaires)
-            cartons_resultats ← CompleterAvecUrgentB(cartons_resultats, articles_urgent_b)
-
         CAS "PRIORITAIRES_ET_SAFE":
+            // Phase 1: Articles prioritaires (CRITIQUE_A/B + URGENT_A)
             cartons_resultats ← TraiterArticlesPrioritaires(articles_prioritaires)
+            // Phase 2: S'il y a de l'espace dispo restant à l'issue de la phase 1 (Knapsack)
             cartons_resultats ← OptimiserAvecSafe(cartons_resultats, articles_safe)
 
         CAS "URGENT_B_ET_SAFE":
+            // Phase 1: Articles URGENT_B
             cartons_resultats ← TraiterArticlesUrgentB(articles_urgent_b)
+            // Phase 2: S'il y a de l'espace dispo restant à l'issue de la phase 1 (Knapsack)
             cartons_resultats ← OptimiserAvecSafe(cartons_resultats, articles_safe)
 
         CAS "SAFE_SEULEMENT":
@@ -694,6 +694,9 @@ FIN
 
 #### **Analyse de Composition**
 
+**Principe de simplification :**
+L'orchestrateur a été simplifié pour ne traiter que les cas où des articles SAFE sont présents. Cela évite de créer des propositions APP pour des articles non critiques seuls (PRIORITAIRES_SEULEMENT, URGENT_B_SEULEMENT), conformément à la règle métier "pas de proposition si SAFE_SEULEMENT".
+
 ```pseudocode
 ALGORITHME AnalyserComposition(articles_prioritaires, articles_urgent_b, articles_safe)
 DEBUT
@@ -701,25 +704,26 @@ DEBUT
     a_urgent_b ← (articles_urgent_b.taille > 0)
     a_safe ← (articles_safe.taille > 0)
 
+    // Seuls les cas avec articles SAFE sont traités
     SI a_prioritaires ET a_urgent_b ET a_safe ALORS
         RETOURNER "COMPOSITION_COMPLETE"
-    SINON_SI a_prioritaires ET a_urgent_b ALORS
-        RETOURNER "PRIORITAIRES_ET_URGENT_B"
     SINON_SI a_prioritaires ET a_safe ALORS
         RETOURNER "PRIORITAIRES_ET_SAFE"
-    SINON_SI a_prioritaires ALORS
-        RETOURNER "PRIORITAIRES_SEULEMENT"
     SINON_SI a_urgent_b ET a_safe ALORS
         RETOURNER "URGENT_B_ET_SAFE"
-    SINON_SI a_urgent_b ALORS
-        RETOURNER "URGENT_B_SEULEMENT"
     SINON_SI a_safe ALORS
         RETOURNER "SAFE_SEULEMENT"
     SINON
+        // Cas sans SAFE: pas de proposition APP
         RETOURNER "AUCUN_ARTICLE"
     FIN_SI
 FIN
 ```
+
+**Justification :**
+- ✅ Articles PRIORITAIRES et URGENT_B seuls → déjà traités en urgence via d'autres mécanismes
+- ✅ Articles SAFE → nécessitent optimisation pour atteindre stock cible
+- ✅ Évite propositions APP redondantes pour matériel déjà expédié en urgence
 
 ### 4.5 Règles de Gestion
 
