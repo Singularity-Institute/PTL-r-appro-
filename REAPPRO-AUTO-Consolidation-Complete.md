@@ -351,6 +351,83 @@ DEBUT
 FIN
 ```
 
+#### **Diagramme de Séquence : CalculerUrgencesMateriels**
+
+```mermaid
+sequenceDiagram
+    participant CALLER as Appelant
+    participant CALC as CalculerUrgencesMateriels
+    participant PROJ as ProjectionStock
+    participant TEMPO as CalculerUrgenceTemporelle
+    participant IMP as DeterminerImportance
+    participant RESULT as Liste Résultats
+
+    CALLER->>CALC: CalculerUrgencesMateriels(liste_materiels)
+    CALC->>RESULT: Créer liste_vide()
+
+    loop Pour chaque matériel
+        Note over CALC: Étape 1: Projection Stock
+        CALC->>PROJ: ProjectionStock(materiel, search_depth)
+        PROJ-->>CALC: projections[1...search_depth]
+
+        Note over CALC: Étape 2: Urgence Quantitative
+        loop Pour jour = 1 à search_depth
+            alt stock_projection[jour] ≤ stock_min
+                CALC->>CALC: urgences_quanti[jour] = 100
+            else stock_projection[jour] > stock_min
+                CALC->>CALC: urgences_quanti[jour] = 0
+            end
+        end
+
+        Note over CALC: Étape 3: Urgence Temporelle
+        CALC->>CALC: TrouverPremiereRupture(projections, stock_min)
+        CALC->>TEMPO: CalculerUrgenceTemporelle(premier_jour_critique)
+
+        alt Rupture J1-J5 (imminent)
+            TEMPO-->>CALC: urgence_tempo = 100
+        else Rupture J6-J8 (modéré)
+            TEMPO-->>CALC: urgence_tempo = 50
+        else Rupture J9+ ou pas de rupture
+            TEMPO-->>CALC: urgence_tempo = 0
+        end
+
+        Note over CALC: Étape 4: Importance
+        CALC->>IMP: DeterminerImportance(materiel.type)
+
+        alt Scannable (quotidien)
+            IMP-->>CALC: importance = 100
+        else Déclarable/Consommable
+            IMP-->>CALC: importance = 10
+        end
+
+        Note over CALC: Étape 5: Urgence Totale (Court-Circuit)
+        alt urgence_tempo = 0 OU tous urgences_quanti = 0
+            CALC->>CALC: urgence_totale = 0 (SAFE)
+            Note right of CALC: Court-circuit:<br/>Pas de criticité
+        else Sinon
+            CALC->>CALC: urgence_totale = urgence_tempo<br/>+ MAX(urgences_quanti)<br/>+ importance
+            Note right of CALC: Valeurs possibles:<br/>160, 210, 250, 300
+        end
+
+        Note over CALC: Étape 6: Créer Résultat
+        CALC->>RESULT: Ajouter materiel_avec_urgence(urgence_totale,<br/>urgences_quanti, urgence_tempo, importance)
+    end
+
+    Note over CALC: Étape 7: Tri par Urgence
+    CALC->>RESULT: Trier par urgence_totale DÉCROISSANT
+
+    RESULT-->>CALLER: Liste matériels classifiés<br/>(CRITIQUE_A, URGENT_A,<br/>CRITIQUE_B, URGENT_B, SAFE)
+```
+
+**Légende des valeurs d'urgence_totale :**
+- **300** = CRITIQUE_A (scannable, rupture J1-J5)
+- **250** = URGENT_A (scannable, rupture J6-J8)
+- **210** = CRITIQUE_B (déclarable, rupture J1-J5)
+- **160** = URGENT_B (déclarable, rupture J6-J8)
+- **0** = SAFE (pas de rupture ou rupture J9+)
+
+---
+
 ### 3.4 Règles de Gestion
 
 #### **RG1 - Urgence Quantitative (UrQ)**
