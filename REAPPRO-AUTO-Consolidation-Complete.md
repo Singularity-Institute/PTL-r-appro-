@@ -1123,6 +1123,96 @@ DEBUT
 FIN
 ```
 
+#### **Diagramme de Séquence : CompleterAvecUrgentB + CalculerValeurValorisationUrgentB**
+
+```mermaid
+sequenceDiagram
+    participant EXEC as ExecuterStrategieStandard
+    participant COMPLET as CompleterAvecUrgentB
+    participant VALOR as CalculerValeurValorisationUrgentB
+    participant CARTONS as Cartons Existants
+
+    EXEC->>COMPLET: CompleterAvecUrgentB(cartons_existants, articles_urgent_b)
+    Note over COMPLET: Étape 1: Valoriser tous les articles
+
+    loop Pour chaque article URGENT_B
+        COMPLET->>VALOR: CalculerValeurValorisationUrgentB(article)
+
+        Note over VALOR: Récupérer données article
+        VALOR->>VALOR: stock_min = article.stock_min<br/>stock_actuel = article.stock_actuel
+
+        Note over VALOR: Facteur 1 (50%) : Écart au stock_min
+        VALOR->>VALOR: ecart_normalise = (stock_min - stock_actuel) / stock_min
+        VALOR->>VALOR: score_ecart = ecart_normalise × 50
+        Note right of VALOR: Plus l'article est loin<br/>du stock_min, plus il<br/>est urgent
+
+        Note over VALOR: Facteur 2 (50%) : Efficacité occupation
+        VALOR->>VALOR: efficacite = 1.0 / article.coefficient_occupation
+        VALOR->>VALOR: score_efficacite = efficacite × 50
+        Note right of VALOR: Favorise petits articles<br/>pour maximiser diversité
+
+        Note over VALOR: Calcul valeur composite
+        VALOR->>VALOR: valeur = score_ecart + score_efficacite
+
+        VALOR-->>COMPLET: valeur (ex: 273.5, 530, 162.5 points)
+        COMPLET->>COMPLET: article.valeur = valeur
+    end
+
+    Note over COMPLET: Étape 2: Trier par valeur décroissante
+    COMPLET->>COMPLET: TRIER articles_urgent_b PAR valeur DÉCROISSANT
+    Note right of COMPLET: Articles triés:<br/>1. Article Y (530 pts)<br/>2. Article X (273.5 pts)<br/>3. Article Z (162.5 pts)
+
+    Note over COMPLET: Étape 3: Placement séquentiel
+
+    loop Pour chaque article (ordre décroissant)
+        COMPLET->>COMPLET: quantite_restante = article.quantite_a_placer
+
+        loop Pour chaque carton
+            COMPLET->>CARTONS: carton.peutAccueillir(article) ?
+
+            alt Espace disponible ET quantite_restante > 0
+                CARTONS-->>COMPLET: OUI, capacite_restante
+
+                COMPLET->>COMPLET: quantite_possible = PLANCHER(capacite_restante / coeff)
+                COMPLET->>COMPLET: quantite_a_ajouter = MIN(quantite_possible, quantite_restante)
+
+                COMPLET->>CARTONS: ajouterArticle(article, quantite_a_ajouter)
+                CARTONS-->>COMPLET: Article ajouté
+
+                COMPLET->>COMPLET: quantite_restante -= quantite_a_ajouter
+                Note right of COMPLET: Ex: Carton1 += 3 Badges
+
+            else Pas d'espace OU quantite_restante = 0
+                CARTONS-->>COMPLET: NON
+                Note right of COMPLET: Passer au carton suivant
+            end
+        end
+
+        alt quantite_restante > 0
+            COMPLET->>COMPLET: LoggerPlacementPartiel(article, quantite_restante)
+            Note right of COMPLET: ⚠️ Placement partiel<br/>Espace insuffisant
+        end
+    end
+
+    COMPLET-->>EXEC: cartons_existants mis à jour
+
+    Note over EXEC: Résultat:<br/>- Articles URGENT_B placés par priorité<br/>- Maximisation valeur métier<br/>- Placement partiel si espace insuffisant
+```
+
+**Points clés du diagramme :**
+
+1. **Valorisation intelligente** : Chaque article URGENT_B reçoit un score basé sur :
+   - Écart au stock_min (50%) : Plus il est loin, plus c'est urgent
+   - Efficacité d'occupation (50%) : Favorise petits articles pour diversité
+
+2. **Tri par priorité** : Articles triés par valeur décroissante avant placement
+
+3. **Placement séquentiel** : Les articles les plus valorisés sont placés en premier dans l'espace disponible
+
+4. **Gestion placement partiel** : Si espace insuffisant, placement partiel accepté et loggé
+
+---
+
 ### 📊 Comparaison URGENT_B vs SAFE
 
 | Critère | URGENT_B (Phase 2) | SAFE (Phase 3) |
@@ -1175,7 +1265,7 @@ DEBUT
 FIN
 ```
 
-#### **RG05 - Fonction de Valorisation Stock (pour Knapsack)**
+#### **RG05 - Fonction de Valorisation SAFE (pour Knapsack)**
 
 **Objectif :**
 Déterminer la valeur d'un article SAFE pour prioriser dans l'optimisation knapsack.
@@ -1203,7 +1293,7 @@ Articles SAFE candidats :
 
 **Algorithme :**
 ```pseudocode
-FONCTION CalculerValeurValorisationStock(article)
+FONCTION CalculerValeurValorisationSafe(article)
 DEBUT
     stock_cible = (article.stock_min + article.stock_max) / 2
     stock_actuel = article.stock_actuel
@@ -1343,7 +1433,7 @@ DEBUT
             POUR w DE 0 À capacite_discretisee FAIRE
                 article ← articles_candidats[i-1]
                 cout_occupation_discret ← ARRONDI(article.quantite × article.coefficient × 100)
-                valeur_stock ← CalculerValeurValorisationStock(article)
+                valeur_stock ← CalculerValeurValorisationSafe(article)
 
                 SI cout_occupation_discret <= w ALORS
                     dp[i][w] ← MAX(dp[i-1][w],
@@ -1361,6 +1451,121 @@ DEBUT
     RETOURNER cartons_existants
 FIN
 ```
+
+#### **Diagramme de Séquence : OptimiserArticlesSafe + CalculerValeurValorisationSafe**
+
+```mermaid
+sequenceDiagram
+    participant EXEC as ExecuterStrategieStandard
+    participant OPT as OptimiserArticlesSafe
+    participant VALOR as CalculerValeurValorisationSafe
+    participant KNAP as KnapsackMultiContraintes
+    participant CARTONS as Cartons Existants
+
+    EXEC->>OPT: OptimiserArticlesSafe(articles_safe, cartons_existants)
+    Note over OPT: Étape 1: Calculer quantités requises
+
+    loop Pour chaque article SAFE
+        OPT->>OPT: stock_cible = (article.stock_min + article.stock_max) / 2
+        OPT->>OPT: stock_actuel_projete = stock_actuel + quantite_deja_placee
+
+        alt stock_actuel_projete < stock_cible
+            OPT->>OPT: article.quantite_a_placer = stock_cible - stock_actuel_projete
+            Note right of OPT: Article nécessite<br/>réapprovisionnement
+        else stock_actuel_projete ≥ stock_cible
+            OPT->>OPT: article.quantite_a_placer = 0
+            OPT->>OPT: RETIRER article DE articles_safe
+            Note right of OPT: Stock déjà optimal
+        end
+    end
+
+    Note over OPT: Étape 2: Lancer Knapsack Multi-Contraintes
+    OPT->>KNAP: KnapsackMultiContraintes(articles_safe, cartons_existants)
+
+    loop Pour chaque carton
+        KNAP->>CARTONS: Récupérer occupation_actuelle
+        CARTONS-->>KNAP: occupation_actuelle (ex: 0.70 = 70%)
+
+        KNAP->>KNAP: capacite_restante = 1.0 - occupation_actuelle
+        KNAP->>KNAP: capacite_discretisee = ARRONDI(capacite_restante × 100)
+        Note right of KNAP: Ex: 0.30 → 30 unités
+
+        Note over KNAP: Filtrer articles candidats
+        KNAP->>KNAP: articles_candidats = FiltrerParCapacite(articles_safe, capacite_restante)
+
+        Note over KNAP: Valoriser chaque article candidat
+        loop Pour chaque article candidat
+            KNAP->>VALOR: CalculerValeurValorisationSafe(article)
+
+            Note over VALOR: Récupérer données
+            VALOR->>VALOR: stock_cible = (stock_min + stock_max) / 2<br/>stock_actuel = article.stock_actuel
+
+            Note over VALOR: Facteur 1 (50%) : Écart au stock_cible
+            VALOR->>VALOR: ecart_normalise = (stock_cible - stock_actuel) / stock_cible
+            VALOR->>VALOR: score_ecart = ecart_normalise × 50
+            Note right of VALOR: Plus il est loin du<br/>stock optimal, plus il<br/>est prioritaire
+
+            Note over VALOR: Facteur 2 (50%) : Efficacité occupation
+            VALOR->>VALOR: efficacite = 1.0 / article.coefficient_occupation
+            VALOR->>VALOR: score_efficacite = efficacite × 50
+            Note right of VALOR: Favorise petits articles<br/>pour diversité
+
+            Note over VALOR: Calcul valeur composite
+            VALOR->>VALOR: valeur = score_ecart + score_efficacite
+
+            VALOR-->>KNAP: valeur (ex: 133.5, 510.5, 200 points)
+            KNAP->>KNAP: article.valeur_stock = valeur
+        end
+
+        Note over KNAP: Programmation Dynamique
+        KNAP->>KNAP: InitialiserTableDP(nb_articles, capacite_discretisee)
+
+        loop i = 1 à nb_articles
+            loop w = 0 à capacite_discretisee
+                KNAP->>KNAP: cout = ARRONDI(article[i].qte × coeff × 100)
+                KNAP->>KNAP: valeur = article[i].valeur_stock
+
+                alt cout ≤ w
+                    KNAP->>KNAP: dp[i][w] = MAX(<br/>  dp[i-1][w],<br/>  dp[i-1][w-cout] + valeur<br/>)
+                    Note right of KNAP: Choix optimal:<br/>Inclure ou exclure
+                else cout > w
+                    KNAP->>KNAP: dp[i][w] = dp[i-1][w]
+                    Note right of KNAP: Article ne rentre pas
+                end
+            end
+        end
+
+        Note over KNAP: Reconstruction Solution Optimale
+        KNAP->>KNAP: solution = ReconstruireSolution(dp, articles_candidats, capacite)
+        Note right of KNAP: Backtracking depuis dp[N][cap]
+
+        KNAP->>CARTONS: AppliquerSolution(carton, solution)
+        CARTONS-->>KNAP: Articles SAFE ajoutés
+        Note right of CARTONS: Ex: Carton1 += 3 Badges (510.5 pts)<br/>+ 1 DO (200 pts)
+    end
+
+    KNAP-->>OPT: cartons_existants optimisés
+    OPT-->>EXEC: cartons_existants avec SAFE placés
+
+    Note over EXEC: Résultat:<br/>- Articles SAFE placés optimalement<br/>- Maximisation valeur métier totale<br/>- Contrainte d'espace respectée
+```
+
+**Points clés du diagramme :**
+
+1. **Calcul quantités requises** : Détermine pour chaque article SAFE la quantité nécessaire pour atteindre le stock cible `(stock_min + stock_max) / 2`
+
+2. **Valorisation SAFE** : Chaque article reçoit un score basé sur :
+   - Écart au stock_cible (50%) : Plus il est loin de l'optimal, plus prioritaire
+   - Efficacité d'occupation (50%) : Favorise petits articles pour diversité
+
+3. **Programmation dynamique** : Pour chaque carton, résout le problème du sac à dos :
+   - Table DP pour mémoriser les solutions optimales
+   - Choix binaire pour chaque article : inclure ou exclure
+   - Maximise la valeur totale sous contrainte d'espace
+
+4. **Backtracking** : Reconstruit la solution optimale depuis la table DP
+
+5. **Résultat optimal** : Les articles SAFE placés maximisent la valeur métier dans l'espace résiduel disponible
 
 ---
 
@@ -1571,9 +1776,9 @@ graph TB
 | **M3-RG02** | **Hiérarchie de Criticité** : `(CRITIQUE_A = CRITIQUE_B = URGENT_A) > URGENT_B > SAFE`. Traitement : Prioritaires (100% garanti) > URGENT_B (complétion) > SAFE (knapsack). |
 | **M3-RG03** | **Complétion URGENT_B avec Priorisation Intelligente** : Fonction de valorisation `CalculerValeurValorisationUrgentB` avec 2 facteurs : (1) Écart au `stock_min` (50%), (2) Efficacité occupation (50%). Tri par valeur décroissante avant placement. **SANS créer nouveaux cartons**. |
 | **M3-RG04** | **Optimisation SAFE (Knapsack)** : Calculer quantités requises pour atteindre `stock_cible = (stock_min + stock_max) / 2`. Appliquer algorithme Knapsack Multi-Contraintes sur espace résiduel. **SANS créer nouveaux cartons**. |
-| **M3-RG05** | **Fonction de Valorisation Stock (SAFE)** : Fonction composite avec 2 facteurs : (1) Écart au `stock_cible` (50%), (2) Efficacité occupation (50%). Priorise articles les plus loin du stock optimal et favorise diversité dans l'espace limité. |
+| **M3-RG05** | **Fonction de Valorisation SAFE** : Fonction composite avec 2 facteurs : (1) Écart au `stock_cible` (50%), (2) Efficacité occupation (50%). Priorise articles les plus loin du stock optimal et favorise diversité dans l'espace limité. |
 | **M3-RG06** | **Algorithme TraiterArticlesPrioritaires** : Calculer `occupation_totale`, créer `PLAFOND(occupation_totale)` cartons, distribuer articles prioritaires (CRITIQUE_A/B + URGENT_A). **Garantie 100% placement**. |
-| **M3-RG07** | **Algorithme Knapsack Multi-Contraintes** : Programmation dynamique pour optimiser placement SAFE. Utilise `CalculerValeurValorisationStock` pour priorisation. Reconstruction solution optimale. |
+| **M3-RG07** | **Algorithme Knapsack Multi-Contraintes** : Programmation dynamique pour optimiser placement SAFE. Utilise `CalculerValeurValorisationSafe` pour priorisation. Reconstruction solution optimale. |
 
 ---
 
