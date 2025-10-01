@@ -1707,6 +1707,239 @@ graph TB
 
 ---
 
+### 5.3 Diagramme de Classes
+
+```mermaid
+classDiagram
+    %% ========== ENUMERATIONS ==========
+    class GradeCriticite {
+        <<enumeration>>
+        CRITIQUE_A : 300
+        URGENT_A : 250
+        CRITIQUE_B : 210
+        URGENT_B : 160
+        SAFE : 0
+    }
+
+    class Strategy {
+        <<enumeration>>
+        DEFAULT
+        LOT2
+        LOT3
+    }
+
+    class ArticleType {
+        <<enumeration>>
+        CENTRALE
+        BADGE
+        DO
+        DFO
+        CAMERA_EXT
+        CABLES
+        KITS
+    }
+
+    %% ========== ENTITÉS MÉTIER ==========
+    class Materiel {
+        +String id
+        +ArticleType type
+        +String distributeur
+        +int stock_actuel
+        +int stock_min
+        +int stock_max
+        +int[] stock_projections
+        +int quantite_requise
+        +double coefficient_occupation
+        +UrQ urgence_quantitative
+        +UrT urgence_temporelle
+        +ImP importance
+        +UrTT urgence_totale
+        +getStockCible() int
+        +calculerEcartStockMin() double
+        +calculerEcartStockCible() double
+        +isScannable() boolean
+    }
+
+    class Article {
+        +String id
+        +ArticleType type
+        +String distributeur
+        +GradeCriticite grade
+        +int quantite_a_placer
+        +int quantite_deja_placee
+        +double coefficient_occupation
+        +int stock_min
+        +int stock_max
+        +int stock_actuel
+        +double valeur_priorisation
+        +getOccupationTotale() double
+        +isCritique() boolean
+        +isUrgentB() boolean
+        +isSafe() boolean
+        +calculateStockObjective() int
+    }
+
+    class Carton {
+        +String id
+        +double occupation_actuelle
+        +List~Article~ articles_contenus
+        +double capacite_maximale
+        +boolean est_finalise
+        +getCapaciteRestante() double
+        +peutAccueillir(Article) boolean
+        +ajouterArticle(Article, int) void
+        +finaliser() void
+        +getTauxOccupation() double
+    }
+
+    %% ========== CONTEXTE & RÉSULTAT ==========
+    class OptimisationContext {
+        +List~Article~ articles_input
+        +CartonConstraints contraintes_carton
+        +Map~ArticleType, Double~ coefficients_occupation
+        +int search_depth
+        +Strategy strategy
+        +String strategie_name
+        +getArticlesByGrade(GradeCriticite) List~Article~
+        +getTotalArticleCount() int
+        +validateConfiguration() boolean
+    }
+
+    class PackingResult {
+        +List~Carton~ cartons_finaux
+        +MetriquesOptimisation metriques
+        +boolean validation_success
+        +List~Article~ articles_non_places
+        +getTauxSatisfactionGlobal() double
+        +getNombreCartonsTotal() int
+        +generateSummaryReport() Report
+    }
+
+    class MetriquesOptimisation {
+        +double taux_occupation_moyen
+        +int nombre_articles_places
+        +int nombre_articles_total
+        +double taux_satisfaction
+        +Map~GradeCriticite, Integer~ repartition_par_grade
+        +calculerTauxSatisfaction() double
+    }
+
+    class CartonConstraints {
+        +double capacite_maximale
+        +int nombre_max_cartons
+        +Map~ArticleType, Integer~ quantite_max_par_type
+        +validateCarton(Carton) boolean
+    }
+
+    %% ========== SERVICES/CALCULATEURS ==========
+    class CalculBesoinService {
+        <<service>>
+        +calculerStockInitial(Materiel) int
+        +projeterStock(Materiel, int) int[]
+        +calculerFacteurImprevus(Planning) double
+        +determinerQuantiteRequise(Materiel) int
+    }
+
+    class EvaluationUrgenceService {
+        <<service>>
+        +calculerUrgencesMateriels(List~Materiel~) List~Materiel~
+        +calculerUrgenceQuantitative(Materiel) int
+        +calculerUrgenceTemporelle(Materiel) int
+        +determinerImportance(ArticleType) int
+        +calculerUrgenceTotale(int, int, int) int
+        +classifierParGrade(Materiel) GradeCriticite
+    }
+
+    class OptimisationService {
+        <<service>>
+        +optimiserColis(OptimisationContext) PackingResult
+        +executerStrategieStandard(List~Article~) PackingResult
+        +analyserComposition(List~Article~) String
+        +traiterArticlesPrioritaires(List~Article~) List~Carton~
+        +completerAvecUrgentB(List~Carton~, List~Article~) List~Carton~
+        +optimiserAvecSafe(List~Carton~, List~Article~) List~Carton~
+        +validerEtGenererRapport(List~Carton~) PackingResult
+    }
+
+    class ValorisationService {
+        <<service>>
+        +calculerValeurValorisationUrgentB(Article) double
+        +calculerValeurValorisationSafe(Article) double
+        +calculerEcartNormalise(Article, int) double
+        +calculerEfficaciteOccupation(Article) double
+    }
+
+    class KnapsackService {
+        <<service>>
+        +knapsackMultiContraintes(List~Article~, List~Carton~) List~Carton~
+        +initialiserTableDP(int, int) double[][]
+        +reconstruireSolution(double[][], List~Article~, int) List~Article~
+        +appliquerSolution(Carton, List~Article~) void
+    }
+
+    %% ========== RELATIONS ==========
+    Materiel --> ArticleType : type
+    Materiel --> GradeCriticite : urgence_totale classée en
+
+    Article --> ArticleType : type
+    Article --> GradeCriticite : grade
+
+    Carton "1" *-- "0..*" Article : contient
+
+    OptimisationContext --> Strategy : strategy
+    OptimisationContext "1" *-- "0..*" Article : articles_input
+    OptimisationContext --> CartonConstraints : contraintes_carton
+
+    PackingResult "1" *-- "0..*" Carton : cartons_finaux
+    PackingResult --> MetriquesOptimisation : metriques
+    PackingResult "1" *-- "0..*" Article : articles_non_places
+
+    CalculBesoinService ..> Materiel : calcule
+    EvaluationUrgenceService ..> Materiel : évalue
+    EvaluationUrgenceService ..> Article : produit
+
+    OptimisationService ..> OptimisationContext : utilise
+    OptimisationService ..> PackingResult : produit
+    OptimisationService ..> Article : traite
+    OptimisationService ..> Carton : crée
+
+    ValorisationService ..> Article : valorise
+    KnapsackService ..> Article : optimise
+    KnapsackService ..> Carton : remplit
+
+    OptimisationService ..> ValorisationService : appelle
+    OptimisationService ..> KnapsackService : appelle
+
+    %% Annotations
+    note for Materiel "Sortie Module 1 & 2\nAvant classification"
+    note for Article "Sortie Module 2\nAprès classification par grade"
+    note for Carton "Module 3\nConteneur de placement"
+    note for PackingResult "Résultat final\nProposition APP"
+```
+
+**Description des classes principales :**
+
+| Classe | Responsabilité | Module |
+|--------|----------------|--------|
+| **Materiel** | Représente un article avec son historique de stock et ses projections | Module 1 & 2 |
+| **Article** | Matériel classifié avec grade de criticité et prêt pour optimisation | Module 3 |
+| **Carton** | Conteneur physique avec contrainte de capacité (0.0 à 1.0) | Module 3 |
+| **OptimisationContext** | Contexte d'exécution avec paramètres et stratégie | Module 3 |
+| **PackingResult** | Résultat final avec cartons optimisés et métriques | Module 3 |
+| **CalculBesoinService** | Calcule les besoins en stock et projections | Module 1 |
+| **EvaluationUrgenceService** | Évalue l'urgence et classifie les matériels | Module 2 |
+| **OptimisationService** | Orchestre l'optimisation des cartons | Module 3 |
+| **ValorisationService** | Calcule les valeurs de priorisation | Module 3 |
+| **KnapsackService** | Résout le problème du sac à dos multi-contraintes | Module 3 |
+
+**Relations clés :**
+- Un **Materiel** devient un **Article** après classification
+- Un **Carton** contient plusieurs **Articles**
+- Un **PackingResult** contient plusieurs **Cartons**
+- Les **Services** manipulent les entités métier pour produire les résultats
+
+---
+
 ## 📏 6. Règles de Gestion Transversales
 
 ### RT-01 : Séparation GBH vs ORG
