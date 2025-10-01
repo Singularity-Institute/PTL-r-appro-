@@ -802,6 +802,109 @@ FIN
 - ✅ Articles SAFE → nécessitent optimisation pour atteindre stock cible
 - ✅ Évite propositions APP redondantes pour matériel déjà expédié en urgence
 
+---
+
+#### **Diagramme de Séquence : OptimiserColis + ExecuterStrategieStandard**
+
+```mermaid
+sequenceDiagram
+    participant CALLER as Module 3 - Entrée
+    participant OPT as OptimiserColis
+    participant EXEC as ExecuterStrategieStandard
+    participant ANALYZE as AnalyserComposition
+    participant PRIO as TraiterArticlesPrioritaires
+    participant URGB as CompleterAvecUrgentB
+    participant SAFE as OptimiserAvecSafe
+    participant VALID as ValiderEtGenererRapport
+
+    CALLER->>OPT: OptimiserColis(context)
+    Note over OPT: Initialisation
+    OPT->>OPT: strategie = context.strategie_name<br/>articles_input = context.articles_input
+
+    Note over OPT: Classification Initiale
+    OPT->>OPT: articles_prioritaires = Filtrer([CRITIQUE_A, CRITIQUE_B, URGENT_A])
+    OPT->>OPT: articles_urgent_b = Filtrer([URGENT_B])
+    OPT->>OPT: articles_safe = Filtrer([SAFE])
+
+    Note over OPT: Sélection Stratégie
+    alt strategie = "DEFAULT"
+        OPT->>EXEC: ExecuterStrategieStandard(articles_prioritaires,<br/>articles_urgent_b, articles_safe)
+    else strategie = "Lot2" | "Lot3"
+        OPT->>OPT: ExecuterStrategieLot2/3(...)
+        Note right of OPT: Stratégies futures
+    end
+
+    Note over EXEC: Analyse Composition
+    EXEC->>ANALYZE: AnalyserComposition(articles_prioritaires,<br/>articles_urgent_b, articles_safe)
+
+    alt Prioritaires + UrgentB + Safe
+        ANALYZE-->>EXEC: "COMPOSITION_COMPLETE"
+
+        Note over EXEC: Phase 1: Prioritaires (100% garanti)
+        EXEC->>PRIO: TraiterArticlesPrioritaires(articles_prioritaires)
+        PRIO-->>EXEC: cartons_resultats (avec CRITIQUE_A/B + URGENT_A)
+        Note right of PRIO: Crée PLAFOND(occupation_totale) cartons<br/>Garantie 100% placement
+
+        Note over EXEC: Phase 2: Complétion URGENT_B
+        EXEC->>URGB: CompleterAvecUrgentB(cartons_resultats, articles_urgent_b)
+        Note over URGB: 1. Valoriser articles (stock_min)<br/>2. Trier par valeur décroissante<br/>3. Placer dans espace dispo
+        URGB-->>EXEC: cartons_resultats mis à jour
+
+        Note over EXEC: Phase 3: Optimisation SAFE
+        EXEC->>SAFE: OptimiserAvecSafe(cartons_resultats, articles_safe)
+        Note over SAFE: 1. Calculer quantités vers stock_cible<br/>2. Appliquer Knapsack Multi-Contraintes<br/>3. Maximiser valeur métier
+        SAFE-->>EXEC: cartons_resultats optimisés
+
+    else Prioritaires + Safe
+        ANALYZE-->>EXEC: "PRIORITAIRES_ET_SAFE"
+
+        Note over EXEC: Phase 1: Prioritaires
+        EXEC->>PRIO: TraiterArticlesPrioritaires(articles_prioritaires)
+        PRIO-->>EXEC: cartons_resultats
+
+        Note over EXEC: Phase 2: Optimisation SAFE
+        EXEC->>SAFE: OptimiserAvecSafe(cartons_resultats, articles_safe)
+        SAFE-->>EXEC: cartons_resultats optimisés
+
+    else UrgentB + Safe
+        ANALYZE-->>EXEC: "URGENT_B_ET_SAFE"
+
+        Note over EXEC: Phase 1: URGENT_B
+        EXEC->>URGB: TraiterArticlesUrgentB(articles_urgent_b)
+        URGB-->>EXEC: cartons_resultats
+
+        Note over EXEC: Phase 2: Optimisation SAFE
+        EXEC->>SAFE: OptimiserAvecSafe(cartons_resultats, articles_safe)
+        SAFE-->>EXEC: cartons_resultats optimisés
+
+    else Safe Seulement | Aucun Article
+        ANALYZE-->>EXEC: "SAFE_SEULEMENT" | "AUCUN_ARTICLE"
+        EXEC->>EXEC: cartons_resultats = LISTE_VIDE()
+        Note right of EXEC: Pas de proposition APP<br/>Règle métier
+    end
+
+    Note over EXEC: Validation & Rapport
+    EXEC->>VALID: ValiderEtGenererRapport(cartons_resultats)
+    VALID-->>EXEC: PackingResult validé
+    EXEC-->>OPT: PackingResult
+    OPT-->>CALLER: PackingResult final
+
+    Note over CALLER: Résultat:<br/>- Cartons optimisés<br/>- Métriques (taux remplissage, etc.)<br/>- Articles placés/non placés
+```
+
+**Points clés du diagramme :**
+
+1. **Classification initiale** : Tri des articles en 3 catégories (Prioritaires, URGENT_B, SAFE)
+2. **Analyse de composition** : Détermine la stratégie à appliquer selon les articles présents
+3. **Traitement en phases** :
+   - Phase 1 : Articles prioritaires (garantie 100%)
+   - Phase 2 : Complétion URGENT_B (si espace dispo)
+   - Phase 3 : Optimisation SAFE via Knapsack (si espace dispo)
+4. **Court-circuit** : Pas de proposition si SAFE_SEULEMENT ou AUCUN_ARTICLE
+5. **Validation finale** : Génération du rapport avec métriques
+
+---
+
 ### 4.5 Règles de Gestion
 
 #### **RG01 - Coefficient d'Occupation**
