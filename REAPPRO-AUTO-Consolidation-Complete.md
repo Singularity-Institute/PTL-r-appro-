@@ -1416,6 +1416,114 @@ FIN
 
 **Garantie :** `ARRONDI_SUP(occupation_totale)` assure mathématiquement 100% placement.
 
+#### **Diagramme de Séquence : TraiterArticlesPrioritaires**
+
+```mermaid
+sequenceDiagram
+    participant EXEC as ExecuterStrategieStandard
+    participant TRAITER as TraiterArticlesPrioritaires
+    participant CALC as CalculerOccupationRequise
+    participant FACTORY as CreerCartons
+    participant CARTONS as Liste Cartons
+
+    EXEC->>TRAITER: TraiterArticlesPrioritaires(articles_prioritaires)
+    Note over TRAITER: Articles prioritaires:<br/>CRITIQUE_A, CRITIQUE_B, URGENT_A
+
+    Note over TRAITER: Étape 1: Calculer occupation totale
+    TRAITER->>CALC: CalculerOccupationRequise(articles_prioritaires)
+
+    loop Pour chaque article prioritaire
+        CALC->>CALC: occupation = article.quantite × article.coefficient
+        Note right of CALC: Ex: 5 Centrales × 0.5 = 2.5<br/>2 DO × 0.2 = 0.4<br/>6 DFO × 0.25 = 1.5
+    end
+
+    CALC->>CALC: occupation_totale = Σ(toutes les occupations)
+    CALC-->>TRAITER: occupation_totale (ex: 4.4)
+    Note right of CALC: Exemple:<br/>2.5 + 0.4 + 1.5 = 4.4
+
+    Note over TRAITER: Étape 2: Calculer nombre de cartons requis
+    TRAITER->>TRAITER: nombre_cartons = PLAFOND(occupation_totale)
+    Note right of TRAITER: PLAFOND(4.4) = 5 cartons<br/>✅ Garantie 100% placement
+
+    Note over TRAITER: Étape 3: Créer les cartons
+    TRAITER->>FACTORY: CreerCartons(nombre_cartons)
+
+    loop i = 1 à nombre_cartons
+        FACTORY->>CARTONS: Nouveau Carton(id=i, occupation=0.0, capacite_max=1.0)
+        Note right of CARTONS: Carton vide initialisé
+    end
+
+    FACTORY-->>TRAITER: cartons[] (5 cartons créés)
+
+    Note over TRAITER: Étape 4: Distribution homogène (Round-Robin)
+
+    loop Pour chaque carton
+        loop Tant que carton.occupation_actuelle < 1.0
+            alt Il reste des articles prioritaires à placer
+                TRAITER->>TRAITER: article = ProchainArticlePrioritaire()
+                TRAITER->>TRAITER: quantite_a_ajouter = Calculer quantité pour ce carton
+
+                TRAITER->>CARTONS: ajouterArticle(carton, article, quantite_a_ajouter)
+                Note right of CARTONS: Ex: Carton1 += 2 Centrales<br/>occupation: 0.0 → 1.0
+
+                CARTONS->>CARTONS: occupation_actuelle += quantite × coefficient
+                CARTONS-->>TRAITER: Article ajouté, occupation mise à jour
+
+                Note right of TRAITER: Distribution round-robin<br/>pour répartir équitablement
+            else Plus d'articles à placer
+                TRAITER->>TRAITER: Passer au carton suivant
+                Note right of TRAITER: Carton peut être<br/>partiellement rempli
+            end
+        end
+    end
+
+    Note over TRAITER: Étape 5: Vérification garantie 100%
+    TRAITER->>TRAITER: Vérifier tous les articles prioritaires placés
+
+    alt Tous les articles placés
+        Note right of TRAITER: ✅ Garantie respectée<br/>PLAFOND() assure mathématiquement<br/>l'espace suffisant
+    else Certains articles non placés (impossible mathématiquement)
+        Note right of TRAITER: ❌ Erreur logique<br/>Ne devrait jamais arriver
+    end
+
+    TRAITER-->>EXEC: cartons[] (5 cartons avec articles prioritaires)
+
+    Note over EXEC: Résultat:<br/>- Articles CRITIQUE_A/B + URGENT_A placés à 100%<br/>- Cartons créés = PLAFOND(occupation)<br/>- Distribution homogène<br/>- Prêt pour Phase 2 (URGENT_B)
+```
+
+**Points clés du diagramme :**
+
+1. **Calcul de l'occupation totale** : Somme des `quantité × coefficient` de tous les articles prioritaires
+
+2. **Garantie mathématique 100%** : En créant `PLAFOND(occupation_totale)` cartons, on garantit mathématiquement qu'il y a assez d'espace
+   - Exemple : occupation = 4.4 → 5 cartons → espace total = 5.0 > 4.4 ✅
+
+3. **Distribution homogène (Round-Robin)** : Les articles sont répartis équitablement entre les cartons pour éviter qu'un carton soit très plein et d'autres vides
+
+4. **Pas de priorisation** : Tous les articles prioritaires (CRITIQUE_A/B + URGENT_A) sont traités avec la même priorité (court-circuit = 100% garanti)
+
+5. **Aucun rejet** : Contrairement aux phases 2 et 3, aucun article prioritaire ne peut être rejeté
+
+**Exemple concret :**
+```
+Articles prioritaires:
+- 5 Centrales (coeff 0.5) = 2.5
+- 2 DO (coeff 0.2) = 0.4
+- 6 DFO (coeff 0.25) = 1.5
+Total = 4.4
+
+Cartons créés = PLAFOND(4.4) = 5 cartons
+
+Distribution possible:
+- Carton 1: 2 Centrales (1.0) ← plein
+- Carton 2: 2 Centrales (1.0) ← plein
+- Carton 3: 1 Centrale (0.5) + 2 DO (0.4) = 0.9
+- Carton 4: 3 DFO (0.75)
+- Carton 5: 3 DFO (0.75)
+```
+
+---
+
 #### **RG07 - Algorithme Knapsack Multi-Contraintes**
 
 ```pseudocode
