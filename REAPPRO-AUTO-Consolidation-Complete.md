@@ -1524,6 +1524,148 @@ Distribution possible:
 
 ---
 
+### 📦 Explication : Distribution Round-Robin
+
+**Principe :**
+La distribution **Round-Robin** (littéralement "tourniquet") est une stratégie de répartition équitable qui distribue les articles séquentiellement entre tous les cartons, un par un, en faisant des cycles complets.
+
+**Objectif :**
+- Éviter qu'un carton soit complètement plein pendant que d'autres restent presque vides
+- Répartir équitablement la charge entre tous les cartons
+- Faciliter la logistique (tous les cartons ont un poids/volume similaire)
+
+**Mécanisme :**
+
+```mermaid
+flowchart LR
+    A[Article 1] --> C1[Carton 1]
+    B[Article 2] --> C2[Carton 2]
+    C[Article 3] --> C3[Carton 3]
+    D[Article 4] --> C1
+    E[Article 5] --> C2
+    F[Article 6] --> C3
+    G[Article 7] --> C1
+
+    style C1 fill:#e3f2fd
+    style C2 fill:#fff9c4
+    style C3 fill:#c8e6c9
+```
+
+**Algorithme Round-Robin :**
+```pseudocode
+ALGORITHME DistributionRoundRobin(articles, cartons)
+DEBUT
+    index_carton_courant = 0
+
+    POUR CHAQUE article DANS articles FAIRE
+        carton = cartons[index_carton_courant]
+        quantite_restante = article.quantite
+
+        TANT_QUE quantite_restante > 0 FAIRE
+            capacite_dispo = carton.getCapaciteRestante()
+            quantite_possible = PLANCHER(capacite_dispo / article.coefficient)
+            quantite_a_ajouter = MIN(quantite_possible, quantite_restante)
+
+            SI quantite_a_ajouter > 0 ALORS
+                carton.ajouterArticle(article, quantite_a_ajouter)
+                quantite_restante = quantite_restante - quantite_a_ajouter
+            FIN_SI
+
+            // Passer au carton suivant (tourniquet)
+            index_carton_courant = (index_carton_courant + 1) MOD nombre_cartons
+            carton = cartons[index_carton_courant]
+        FIN_TANT_QUE
+    FIN_POUR
+FIN
+```
+
+### 📊 Exemple Détaillé Round-Robin
+
+**Situation initiale :**
+```
+Articles prioritaires à placer:
+- 8 Centrales (coeff 0.5 = 50% du carton par unité)
+- 10 Badges (coeff 0.1 = 10% du carton par unité)
+- 6 DO (coeff 0.3 = 30% du carton par unité)
+
+Occupation totale:
+= 8 × 0.5 + 10 × 0.1 + 6 × 0.3
+= 4.0 + 1.0 + 1.8
+= 6.8
+
+Nombre de cartons = PLAFOND(6.8) = 7 cartons
+```
+
+**Distribution Round-Robin cycle par cycle :**
+
+| Cycle | Carton | Article à placer | Quantité | Occupation | Occupation cumulée | État |
+|-------|--------|------------------|----------|------------|--------------------|------|
+| **1** | C1 | Centrale #1 | 1 | +0.5 | 0.5 | |
+| **1** | C2 | Centrale #2 | 1 | +0.5 | 0.5 | |
+| **1** | C3 | Centrale #3 | 1 | +0.5 | 0.5 | |
+| **1** | C4 | Centrale #4 | 1 | +0.5 | 0.5 | |
+| **1** | C5 | Centrale #5 | 1 | +0.5 | 0.5 | |
+| **1** | C6 | Centrale #6 | 1 | +0.5 | 0.5 | |
+| **1** | C7 | Centrale #7 | 1 | +0.5 | 0.5 | |
+| **2** | C1 | Centrale #8 | 1 | +0.5 | 1.0 | ✅ Plein |
+| **2** | C2 | Badge #1 | 1 | +0.1 | 0.6 | |
+| **2** | C3 | Badge #2 | 1 | +0.1 | 0.6 | |
+| **2** | C4 | Badge #3 | 1 | +0.1 | 0.6 | |
+| **2** | C5 | Badge #4 | 1 | +0.1 | 0.6 | |
+| **2** | C6 | Badge #5 | 1 | +0.1 | 0.6 | |
+| **2** | C7 | Badge #6 | 1 | +0.1 | 0.6 | |
+| **3** | C2 | Badge #7 | 1 | +0.1 | 0.7 | |
+| **3** | C3 | Badge #8 | 1 | +0.1 | 0.7 | |
+| **3** | C4 | Badge #9 | 1 | +0.1 | 0.7 | |
+| **3** | C5 | Badge #10 | 1 | +0.1 | 0.7 | |
+| **3** | C6 | DO #1 | 1 | +0.3 | 0.9 | |
+| **3** | C7 | DO #2 | 1 | +0.3 | 0.9 | |
+| **4** | C2 | DO #3 | 1 | +0.3 | 1.0 | ✅ Plein |
+| **4** | C3 | DO #4 | 1 | +0.3 | 1.0 | ✅ Plein |
+| **4** | C4 | DO #5 | 1 | +0.3 | 1.0 | ✅ Plein |
+| **4** | C5 | DO #6 | 1 | +0.3 | 1.0 | ✅ Plein |
+
+**Résultat final :**
+
+```
+Carton 1: 2 Centrales (1.0) ← 100% rempli ✅
+Carton 2: 1 Centrale + 1 Badge + 1 DO (0.5 + 0.1 + 0.3 = 0.9) ← 90% rempli
+Carton 3: 1 Centrale + 1 Badge + 1 DO (0.5 + 0.1 + 0.3 = 0.9) ← 90% rempli
+Carton 4: 1 Centrale + 1 Badge + 1 DO (0.5 + 0.1 + 0.3 = 0.9) ← 90% rempli
+Carton 5: 1 Centrale + 1 Badge + 1 DO (0.5 + 0.1 + 0.3 = 0.9) ← 90% rempli
+Carton 6: 1 Centrale + 1 Badge + 1 DO (0.5 + 0.1 + 0.3 = 0.9) ← 90% rempli
+Carton 7: 1 Centrale + 1 Badge + 1 DO (0.5 + 0.1 + 0.3 = 0.9) ← 90% rempli
+
+Occupation moyenne: (1.0 + 0.9×6) / 7 = 6.4 / 7 = 91.4%
+```
+
+**Avantages du Round-Robin :**
+- ✅ **Équité** : Tous les cartons ont une occupation similaire (90-100%)
+- ✅ **Prévisibilité** : Distribution déterministe et reproductible
+- ✅ **Simplicité** : Algorithme simple à implémenter et à tester
+- ✅ **Logistique** : Tous les cartons ont un poids/volume similaire
+
+**Alternative sans Round-Robin (remplissage séquentiel) :**
+```
+Carton 1: 2 Centrales (1.0) ← 100% rempli ✅
+Carton 2: 2 Centrales (1.0) ← 100% rempli ✅
+Carton 3: 2 Centrales (1.0) ← 100% rempli ✅
+Carton 4: 2 Centrales (1.0) ← 100% rempli ✅
+Carton 5: 10 Badges (1.0) ← 100% rempli ✅
+Carton 6: 3 DO (0.9) ← 90% rempli
+Carton 7: 3 DO (0.9) ← 90% rempli
+
+❌ Problème: Certains cartons contiennent un seul type d'article
+❌ Moins flexible pour la logistique
+```
+
+**Round-Robin est préféré car :**
+1. Diversification des articles par carton (utile si un carton est perdu)
+2. Distribution équilibrée du poids
+3. Meilleure utilisation de l'espace global
+
+---
+
 #### **RG07 - Algorithme Knapsack Multi-Contraintes**
 
 ```pseudocode
