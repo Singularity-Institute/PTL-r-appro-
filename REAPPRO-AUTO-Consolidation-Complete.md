@@ -809,7 +809,7 @@ FIN
 ```mermaid
 sequenceDiagram
     participant CALLER as Module 3 - Entrée
-    participant OPT as OptimiserColis
+    participant OPTIM as OptimiserColis
     participant EXEC as ExecuterStrategieStandard
     participant ANALYZE as AnalyserComposition
     participant PRIO as TraiterArticlesPrioritaires
@@ -817,21 +817,21 @@ sequenceDiagram
     participant SAFE as OptimiserAvecSafe
     participant VALID as ValiderEtGenererRapport
 
-    CALLER->>OPT: OptimiserColis(context)
-    Note over OPT: Initialisation
-    OPT->>OPT: strategie = context.strategie_name<br/>articles_input = context.articles_input
+    CALLER->>OPTIM: OptimiserColis(context)
+    Note over OPTIM: Initialisation
+    OPTIM->>OPTIM: strategie = context.strategie_name<br/>articles_input = context.articles_input
 
-    Note over OPT: Classification Initiale
-    OPT->>OPT: articles_prioritaires = Filtrer([CRITIQUE_A, CRITIQUE_B, URGENT_A])
-    OPT->>OPT: articles_urgent_b = Filtrer([URGENT_B])
-    OPT->>OPT: articles_safe = Filtrer([SAFE])
+    Note over OPTIM: Classification Initiale
+    OPTIM->>OPTIM: articles_prioritaires = Filtrer([CRITIQUE_A, CRITIQUE_B, URGENT_A])
+    OPTIM->>OPTIM: articles_urgent_b = Filtrer([URGENT_B])
+    OPTIM->>OPTIM: articles_safe = Filtrer([SAFE])
 
-    Note over OPT: Sélection Stratégie
+    Note over OPTIM: Sélection Stratégie
     alt strategie = "DEFAULT"
-        OPT->>EXEC: ExecuterStrategieStandard(articles_prioritaires,<br/>articles_urgent_b, articles_safe)
+        OPTIM->>EXEC: ExecuterStrategieStandard(articles_prioritaires,<br/>articles_urgent_b, articles_safe)
     else strategie = "Lot2" | "Lot3"
-        OPT->>OPT: ExecuterStrategieLot2/3(...)
-        Note right of OPT: Stratégies futures
+        OPTIM->>OPTIM: ExecuterStrategieLot2/3(...)
+        Note right of OPTIM: Stratégies futures
     end
 
     Note over EXEC: Analyse Composition
@@ -886,8 +886,8 @@ sequenceDiagram
     Note over EXEC: Validation & Rapport
     EXEC->>VALID: ValiderEtGenererRapport(cartons_resultats)
     VALID-->>EXEC: PackingResult validé
-    EXEC-->>OPT: PackingResult
-    OPT-->>CALLER: PackingResult final
+    EXEC-->>OPTIM: PackingResult
+    OPTIM-->>CALLER: PackingResult final
 
     Note over CALLER: Résultat:<br/>- Cartons optimisés<br/>- Métriques (taux remplissage, etc.)<br/>- Articles placés/non placés
 ```
@@ -1457,30 +1457,30 @@ FIN
 ```mermaid
 sequenceDiagram
     participant EXEC as ExecuterStrategieStandard
-    participant OPT as OptimiserArticlesSafe
+    participant OPTIM as OptimiserArticlesSafe
     participant VALOR as CalculerValeurValorisationSafe
     participant KNAP as KnapsackMultiContraintes
     participant CARTONS as Cartons Existants
 
-    EXEC->>OPT: OptimiserArticlesSafe(articles_safe, cartons_existants)
-    Note over OPT: Étape 1: Calculer quantités requises
+    EXEC->>OPTIM: OptimiserArticlesSafe(articles_safe, cartons_existants)
+    Note over OPTIM: Étape 1: Calculer quantités requises
 
     loop Pour chaque article SAFE
-        OPT->>OPT: stock_cible = (article.stock_min + article.stock_max) / 2
-        OPT->>OPT: stock_actuel_projete = stock_actuel + quantite_deja_placee
+        OPTIM->>OPTIM: stock_cible = (article.stock_min + article.stock_max) / 2
+        OPTIM->>OPTIM: stock_actuel_projete = stock_actuel + quantite_deja_placee
 
         alt stock_actuel_projete < stock_cible
-            OPT->>OPT: article.quantite_a_placer = stock_cible - stock_actuel_projete
-            Note right of OPT: Article nécessite<br/>réapprovisionnement
+            OPTIM->>OPTIM: article.quantite_a_placer = stock_cible - stock_actuel_projete
+            Note right of OPTIM: Article nécessite<br/>réapprovisionnement
         else stock_actuel_projete ≥ stock_cible
-            OPT->>OPT: article.quantite_a_placer = 0
-            OPT->>OPT: RETIRER article DE articles_safe
-            Note right of OPT: Stock déjà optimal
+            OPTIM->>OPTIM: article.quantite_a_placer = 0
+            OPTIM->>OPTIM: RETIRER article DE articles_safe
+            Note right of OPTIM: Stock déjà optimal
         end
     end
 
-    Note over OPT: Étape 2: Lancer Knapsack Multi-Contraintes
-    OPT->>KNAP: KnapsackMultiContraintes(articles_safe, cartons_existants)
+    Note over OPTIM: Étape 2: Lancer Knapsack Multi-Contraintes
+    OPTIM->>KNAP: KnapsackMultiContraintes(articles_safe, cartons_existants)
 
     loop Pour chaque carton
         KNAP->>CARTONS: Récupérer occupation_actuelle
@@ -1544,8 +1544,8 @@ sequenceDiagram
         Note right of CARTONS: Ex: Carton1 += 3 Badges (510.5 pts)<br/>+ 1 DO (200 pts)
     end
 
-    KNAP-->>OPT: cartons_existants optimisés
-    OPT-->>EXEC: cartons_existants avec SAFE placés
+    KNAP-->>OPTIM: cartons_existants optimisés
+    OPTIM-->>EXEC: cartons_existants avec SAFE placés
 
     Note over EXEC: Résultat:<br/>- Articles SAFE placés optimalement<br/>- Maximisation valeur métier totale<br/>- Contrainte d'espace respectée
 ```
