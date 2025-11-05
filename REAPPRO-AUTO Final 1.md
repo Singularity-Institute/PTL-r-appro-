@@ -1260,9 +1260,35 @@ DEBUT
         FIN_SI
     FIN_POUR
 
-    // Appliquer Knapsack Multi-Contraintes sur espace résiduel
-    RETOURNER KnapsackMultiContraintes(articles_safe, cartons_existants)
+    // PHASE 2 : Appliquer option 1 iso urgent-b / option 2 = Knapsack Multi-Contraintes sur espace résiduel
+    RETOURNER OptimSafe(cartons_existants, articles_Safe) // option 1 
+    RETOURNER KnapsackMultiContraintes(articles_safe, cartons_existants) // option 2 
 FIN
+```
+
+**Algorithme :**
+```pseudocode
+ALGORITHME OptimSafe(cartons_existants, articles_Safe)
+DEBUT
+POUR CHAQUE article DANS articles_Safe FAIRE // articles safe déjà triés
+        quantite_restante = article.quantite_a_placer
+      
+    POUR CHAQUE carton DANS cartons_existants FAIRE
+        SI carton.peutAccueillir(article) ET quantite_restante > 0 ALORS
+            capacite_restante = carton.getCapaciteRestante()
+            quantite_possible = PLANCHER(capacite_restante / article.coefficient)
+            quantite_a_ajouter = MIN(quantite_possible, quantite_restante)
+
+            carton.ajouterArticle(article, quantite_a_ajouter)
+            quantite_restante = quantite_restante - quantite_a_ajouter
+        FIN_SI
+    FIN_POUR
+
+    // Note : quantite_restante peut être > 0 si espace insuffisant
+    SI quantite_restante > 0 ALORS
+        LoggerPlacementPartiel(article, quantite_restante) // optionnel 
+    FIN_SI
+FIN_POUR
 ```
 
 #### **RG05 - Fonction de Valorisation SAFE (pour Knapsack)**
