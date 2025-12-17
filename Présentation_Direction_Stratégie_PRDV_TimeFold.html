@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Présentation Direction : Gestion des Poids et Stratégies de Planification PRDV avec TimeFold</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2.5cm;
+        }
+
+        body {
+            font-family: 'Calibri', 'Arial', sans-serif;
+            font-size: 11pt;
+            line-height: 1.5;
+            color: #000000;
+            max-width: 21cm;
+            margin: 0 auto;
+            padding: 2cm;
+            background: white;
+        }
+
+        h1 {
+            color: #1f4e78;
+            font-size: 24pt;
+            font-weight: bold;
+            border-bottom: 3px solid #1f4e78;
+            padding-bottom: 10px;
+            margin-top: 0;
+            margin-bottom: 20px;
+            page-break-after: avoid;
+        }
+
+        h2 {
+            color: #1f4e78;
+            font-size: 18pt;
+            font-weight: bold;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            page-break-after: avoid;
+        }
+
+        h3 {
+            color: #2e5c8a;
+            font-size: 14pt;
+            font-weight: bold;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            page-break-after: avoid;
+        }
+
+        h4 {
+            color: #2e5c8a;
+            font-size: 12pt;
+            font-weight: bold;
+            margin-top: 15px;
+            margin-bottom: 8px;
+            page-break-after: avoid;
+        }
+
+        p {
+            margin: 10px 0;
+            text-align: justify;
+        }
+
+        ul, ol {
+            margin: 10px 0;
+            padding-left: 30px;
+        }
+
+        li {
+            margin: 5px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            page-break-inside: avoid;
+        }
+
+        table th {
+            background-color: #1f4e78;
+            color: white;
+            padding: 10px;
+            text-align: left;
+            font-weight: bold;
+            border: 1px solid #1f4e78;
+        }
+
+        table td {
+            padding: 8px;
+            border: 1px solid #d0d0d0;
+        }
+
+        table tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        .executive-summary {
+            background-color: #e7f3ff;
+            border-left: 5px solid #1f4e78;
+            padding: 20px;
+            margin: 20px 0;
+            page-break-inside: avoid;
+        }
+
+        .highlight-box {
+            background-color: #fff8dc;
+            border: 2px solid #ffa500;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+            page-break-inside: avoid;
+        }
+
+        .info-box {
+            background-color: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            margin: 15px 0;
+            page-break-inside: avoid;
+        }
+
+        .warning-box {
+            background-color: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 15px 0;
+            page-break-inside: avoid;
+        }
+
+        .formula {
+            background-color: #f5f5f5;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            page-break-inside: avoid;
+        }
+
+        .page-break {
+            page-break-before: always;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid #d0d0d0;
+            margin: 30px 0;
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 9pt;
+            color: #666;
+            margin-top: 50px;
+            border-top: 1px solid #d0d0d0;
+            padding-top: 10px;
+        }
+
+        strong {
+            font-weight: bold;
+        }
+
+        em {
+            font-style: italic;
+        }
+
+        .checklist {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        .checklist li:before {
+            content: "☐ ";
+            margin-right: 10px;
+        }
+
+        @media print {
+            body {
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<h1>Présentation Direction : Gestion des Poids et Stratégies de Planification PRDV avec TimeFold</h1>
+
+<hr>
+
+<div class="executive-summary">
+    <h2>📋 Résumé Exécutif</h2>
+
+    <p><strong>Objet :</strong> Optimisation de la planification des interventions terrain via TimeFold</p>
+
+    <p><strong>Enjeux :</strong></p>
+    <ul>
+        <li><strong>Coûts opérationnels</strong> : Réduction des km parcourus (carburant, usure véhicules)</li>
+        <li><strong>Satisfaction client</strong> : Respect des dates de rendez-vous (SLA)</li>
+        <li><strong>Qualité de vie techniciens</strong> : Équilibrage de la charge journalière</li>
+    </ul>
+
+    <p><strong>Proposition :</strong></p>
+    <ul>
+        <li>Système de pondération paramétrable des contraintes pour ajuster finement le comportement de l'optimiseur</li>
+        <li>4 stratégies de planification adaptées aux différents contextes métier</li>
+        <li>Outils de calibration permettant d'aligner les décisions automatiques avec les priorités business</li>
+    </ul>
+
+    <p><strong>Impact attendu :</strong></p>
+    <ul>
+        <li>Réduction de X% des coûts kilométriques sur les interventions proches (< 5 km)</li>
+        <li>Amélioration du taux de respect des dates planifiées de X%</li>
+        <li>Diminution des surcharges techniciens de X heures/semaine</li>
+    </ul>
+</div>
+
+<div class="page-break"></div>
+
+<h2>🎯 Contexte et Enjeux Business</h2>
+
+<h3>Le Défi de la Planification Terrain</h3>
+
+<p>Chaque jour, nous devons planifier des centaines d'interventions en arbitrant entre <strong>trois impératifs contradictoires</strong> :</p>
+
+<table>
+    <tr>
+        <th style="width: 30%;">Impératif</th>
+        <th>Description</th>
+        <th>Impact Business</th>
+    </tr>
+    <tr>
+        <td><strong>Minimiser les coûts</strong></td>
+        <td>Réduire les km parcourus</td>
+        <td>
+            • Impact direct sur le budget carburant<br>
+            • Réduction de l'empreinte carbone<br>
+            • Diminution de l'usure des véhicules
+        </td>
+    </tr>
+    <tr>
+        <td><strong>Maximiser la réactivité client</strong></td>
+        <td>Tenir les dates promises</td>
+        <td>
+            • Respect des SLA contractuels<br>
+            • Satisfaction client (NPS)<br>
+            • Image de marque
+        </td>
+    </tr>
+    <tr>
+        <td><strong>Protéger les ressources humaines</strong></td>
+        <td>Équilibrer la charge</td>
+        <td>
+            • Prévention du burn-out<br>
+            • Respect du droit du travail<br>
+            • Attractivité employeur
+        </td>
+    </tr>
+</table>
+
+<h3>Le Constat Actuel</h3>
+
+<p>Sans paramétrage fin, le système prend des décisions qui ne reflètent pas toujours nos priorités business :</p>
+
+<ul>
+    <li>Parfois, il privilégie trop la date au détriment du coût (trajets évitables)</li>
+    <li>Parfois, il surcharge certains techniciens pour optimiser les trajets</li>
+    <li>Les arbitrages ne sont pas adaptés aux spécificités de chaque type d'intervention</li>
+</ul>
+
+<div class="info-box">
+    <strong>→ Besoin d'un pilotage précis du comportement de l'optimiseur</strong>
+</div>
+
+<div class="page-break"></div>
+
+<h2>🏗️ Architecture du Système de Planification</h2>
+
+<h3>Les 4 Contraintes Fondamentales</h3>
+
+<p>Notre optimiseur TimeFold évalue chaque proposition de planification selon 4 contraintes :</p>
+
+<table>
+    <tr>
+        <th>Contrainte</th>
+        <th>Symbole</th>
+        <th>Objectif</th>
+        <th>Métrique</th>
+    </tr>
+    <tr>
+        <td><strong>Distance par Intervention</strong></td>
+        <td>α</td>
+        <td>Minimiser les km pour aller à chaque intervention</td>
+        <td>km/intervention</td>
+    </tr>
+    <tr>
+        <td><strong>Distance Cumulée</strong></td>
+        <td>β</td>
+        <td>Limiter le total kilométrique de la journée</td>
+        <td>km total/jour</td>
+    </tr>
+    <tr>
+        <td><strong>Date de Slot</strong></td>
+        <td>γ</td>
+        <td>Respecter la date planifiée (SLA client)</td>
+        <td>jours de retard</td>
+    </tr>
+    <tr>
+        <td><strong>Charge Journalière</strong></td>
+        <td>δ</td>
+        <td>Équilibrer la charge entre techniciens</td>
+        <td>heures/jour</td>
+    </tr>
+</table>
+
+<h3>Score Global et Pondération</h3>
+
+<p>Le système calcule un <strong>score global</strong> pour chaque proposition :</p>
+
+<div class="formula">
+    Score Global = (α × Score_Distance + β × Score_Cumulée + γ × Score_Date + δ × Score_Charge) / Σ
+</div>
+
+<div class="highlight-box">
+    <strong>Les poids (α, β, γ, δ) déterminent l'importance relative de chaque contrainte.</strong>
+</div>
+
+<h4>Configuration Actuelle (PRDV Standard)</h4>
+
+<table>
+    <tr>
+        <th>Poids</th>
+        <th>Valeur</th>
+        <th>Contribution au Score</th>
+        <th>Interprétation</th>
+    </tr>
+    <tr>
+        <td>α (Distance)</td>
+        <td>100</td>
+        <td>23.8%</td>
+        <td>Optimisation des km</td>
+    </tr>
+    <tr>
+        <td>β (Distance Cumulée)</td>
+        <td>100</td>
+        <td>23.8%</td>
+        <td>Limite kilométrique journalière</td>
+    </tr>
+    <tr>
+        <td style="background-color: #fff8dc;">γ (Date)</td>
+        <td style="background-color: #fff8dc;">200</td>
+        <td style="background-color: #fff8dc;"><strong>47.6%</strong></td>
+        <td style="background-color: #fff8dc;"><strong>Priorité à la date</strong></td>
+    </tr>
+    <tr>
+        <td>δ (Charge)</td>
+        <td>20</td>
+        <td>4.8%</td>
+        <td>Ajustement marginal de la charge</td>
+    </tr>
+</table>
+
+<p><strong>→ Avec cette configuration, le système privilégie le respect des dates, puis l'optimisation des km, et ajuste marginalement la charge.</strong></p>
+
+<div class="page-break"></div>
+
+<h2>🚀 Les 4 Stratégies de Planification Actuelles</h2>
+
+<p>Nous disposons de <strong>4 stratégies</strong> adaptées à différents contextes métier :</p>
+
+<h3>1. Strategy DIGITAL (TT Planif)</h3>
+<div class="info-box">
+    <p><strong>Usage :</strong> Planification des tickets techniques digitaux</p>
+    <ul>
+        <li><strong>Caractéristiques :</strong> Interventions réactives, SLA courts</li>
+        <li><strong>Paramétrage type :</strong> Poids élevé sur la date (γ dominant)</li>
+        <li><strong>Fenêtre de recherche :</strong> Court terme (search_day_start/end restreints)</li>
+    </ul>
+</div>
+
+<h3>2. Strategy SHOP (PRDV)</h3>
+<div class="info-box">
+    <p><strong>Usage :</strong> Planification des prises de rendez-vous client (PRDV)</p>
+    <ul>
+        <li><strong>Caractéristiques :</strong> Engagement client fort, fenêtre de planification flexible</li>
+        <li><strong>Paramétrage type :</strong> Équilibre date/distance (γ ≈ 2α)</li>
+        <li><strong>Fenêtre de recherche :</strong> Moyen terme (J à J+15)</li>
+    </ul>
+</div>
+
+<h3>3. Strategy DIGIT</h3>
+<div class="info-box">
+    <p><strong>Usage :</strong> Interventions digitalisées spécifiques</p>
+    <ul>
+        <li><strong>Caractéristiques :</strong> À définir selon le contexte</li>
+        <li><strong>Paramétrage type :</strong> À calibrer</li>
+    </ul>
+</div>
+
+<h3>4. Strategy AUTOPLANIF</h3>
+<div class="info-box">
+    <p><strong>Usage :</strong> Auto-planification proactive</p>
+    <ul>
+        <li><strong>Caractéristiques :</strong> Planification anticipée, optimisation batch</li>
+        <li><strong>Paramétrage type :</strong> Priorité à l'optimisation kilométrique (α/β dominants)</li>
+        <li><strong>Fenêtre de recherche :</strong> Long terme (J+5 à J+30)</li>
+    </ul>
+</div>
+
+<div class="page-break"></div>
+
+<h2>🎛️ Les Leviers de Paramétrage</h2>
+
+<p>Nous disposons de <strong>5 leviers principaux</strong> pour piloter le comportement du système :</p>
+
+<h3>1. Poids des Contraintes (α, β, γ, δ)</h3>
+
+<p><strong>Niveau :</strong> Global (par stratégie)</p>
+<p><strong>Impact :</strong> Détermine l'arbitrage fondamental du système</p>
+
+<table>
+    <tr>
+        <th>Modification</th>
+        <th>Effet sur le Comportement</th>
+    </tr>
+    <tr>
+        <td>α↑, γ↓</td>
+        <td>Le système devient "coût first" (optimise les km, accepte des retards)</td>
+    </tr>
+    <tr>
+        <td>α↓, γ↑</td>
+        <td>Le système devient "date first" (tient coûte que coûte les dates, accepte des km en plus)</td>
+    </tr>
+    <tr>
+        <td>δ↑</td>
+        <td>Le système protège davantage les techniciens (évite la surcharge)</td>
+    </tr>
+</table>
+
+<div class="highlight-box">
+    <p><strong>Valeurs clés à piloter :</strong></p>
+    <ul>
+        <li><strong>d₀ = 3.8 km</strong> (distance critique) : en dessous, on optimise les km ; au-dessus, on tient la date</li>
+        <li><strong>c₀ = 2h10</strong> (charge critique) : on accepte max 2h10 de surcharge pour tenir la date</li>
+    </ul>
+    <p><strong>→ Voir l'outil HTML pour visualiser l'impact des poids</strong></p>
+</div>
+
+<h3>2. Apply Toleration</h3>
+
+<p><strong>Niveau :</strong> Par contrainte</p>
+<p><strong>Fonction :</strong> Filtrer ou non les propositions qui violent "soft" une contrainte</p>
+
+<table>
+    <tr>
+        <th>Valeur</th>
+        <th>Comportement</th>
+        <th>Cas d'Usage</th>
+    </tr>
+    <tr>
+        <td>true</td>
+        <td>On affiche des propositions même si elles dépassent la limite acceptable</td>
+        <td>Plus de flexibilité, utile en cas de saturation</td>
+    </tr>
+    <tr>
+        <td>false</td>
+        <td>On cache les propositions "hors limite"</td>
+        <td>Respect strict des limites, qualité des propositions</td>
+    </tr>
+</table>
+
+<p><strong>Exemple :</strong> Si on tolère max 2 jours de retard, apply_toleration=false masquera toute proposition à J+3.</p>
+
+<h3>3. Nombre de Propositions (nbr_proposition_to_return)</h3>
+
+<p><strong>Niveau :</strong> Par stratégie (ou par stratégie × type d'intervention)</p>
+<p><strong>Fonction :</strong> Combien de propositions alternatives présenter à l'utilisateur final</p>
+
+<table>
+    <tr>
+        <th>Stratégie</th>
+        <th>Nombre Recommandé</th>
+        <th>Justification</th>
+    </tr>
+    <tr>
+        <td>PRDV</td>
+        <td>5-7 propositions</td>
+        <td>Équilibre choix/simplicité</td>
+    </tr>
+    <tr>
+        <td>AUTOPLANIF</td>
+        <td>1-3 propositions</td>
+        <td>On fait confiance à l'optimisation</td>
+    </tr>
+    <tr>
+        <td>DIGITAL</td>
+        <td>3-5 propositions</td>
+        <td>Réactivité + choix</td>
+    </tr>
+</table>
+
+<h3>4. Fenêtre de Recherche (search_day_start / search_day_end)</h3>
+
+<p><strong>Niveau :</strong> Par stratégie (ou par stratégie × type d'intervention)</p>
+<p><strong>Fonction :</strong> Définir la période sur laquelle l'optimiseur cherche des créneaux</p>
+
+<table>
+    <tr>
+        <th>Fenêtre</th>
+        <th>Avantages</th>
+        <th>Inconvénients</th>
+    </tr>
+    <tr>
+        <td><strong>Courte</strong> (ex: J à J+3)</td>
+        <td>Réactivité client</td>
+        <td>Moins d'optimisation possible (contraintes fortes)</td>
+    </tr>
+    <tr>
+        <td><strong>Longue</strong> (ex: J+5 à J+30)</td>
+        <td>Meilleure optimisation kilométrique</td>
+        <td>Moins de réactivité</td>
+    </tr>
+</table>
+
+<p><strong>Recommandation par stratégie :</strong></p>
+<ul>
+    <li><strong>DIGITAL (TT Planif)</strong> : J à J+3 (urgence)</li>
+    <li><strong>SHOP (PRDV)</strong> : J à J+15 (engagement client flexible)</li>
+    <li><strong>AUTOPLANIF</strong> : J+5 à J+30 (optimisation batch)</li>
+</ul>
+
+<div class="page-break"></div>
+
+<h3>5. Table de Surcharge : strategy_interventiontype_assignment</h3>
+
+<p><strong>Niveau :</strong> Par stratégie × type d'intervention</p>
+<p><strong>Fonction :</strong> Permet de <strong>spécialiser le paramétrage</strong> pour certains types d'interventions</p>
+
+<h4>Paramètres Surchargeables</h4>
+
+<p>Cette table peut surcharger les paramètres suivants pour un couple (stratégie, type d'intervention) :</p>
+<ul>
+    <li>nbr_proposition_to_return</li>
+    <li>search_day_start</li>
+    <li>search_day_end</li>
+</ul>
+
+<h4>Système de Priorisation</h4>
+
+<div class="formula" style="text-align: left; padding: 20px;">
+<strong>PRIORITÉ 1 : Paramètres de la table strategy_interventiontype_assignment</strong><br>
+↓ (si définis pour le couple stratégie × type d'intervention)<br>
+<br>
+<strong>PRIORITÉ 2 : Paramètres de la stratégie globale</strong><br>
+↓ (sinon, valeurs par défaut de la stratégie)<br>
+<br>
+<strong>→ Application du paramètre effectif</strong>
+</div>
+
+<div class="highlight-box">
+    <strong>Avantage :</strong> Une seule stratégie SHOP peut s'adapter à différents types d'interventions sans dupliquer la configuration.
+</div>
+
+<h4>Cas d'Usage Concrets</h4>
+
+<table>
+    <tr>
+        <th>Type d'Intervention</th>
+        <th>Paramétrage Spécifique</th>
+        <th>Justification</th>
+    </tr>
+    <tr>
+        <td><strong>PANNE (urgente)</strong></td>
+        <td>search_day_start=0<br>search_day_end=1</td>
+        <td>Traitement en J ou J+1 uniquement</td>
+    </tr>
+    <tr>
+        <td><strong>MAINTENANCE (standard)</strong></td>
+        <td>Paramètres de la stratégie</td>
+        <td>Fenêtre large (J à J+15)</td>
+    </tr>
+    <tr>
+        <td><strong>VIP (premium)</strong></td>
+        <td>nbr_proposition_to_return=10</td>
+        <td>Plus de choix offerts au client</td>
+    </tr>
+</table>
+
+<div class="page-break"></div>
+
+<h2>🧮 Outil de Calibration : Le Dashboard HTML</h2>
+
+<p><strong>Fichier :</strong> <em>Gestion des poids pour la stratégie PRDV avec TimeFold.html</em></p>
+
+<h3>Fonctionnalités</h3>
+
+<h4>1. Calculateurs Paramétriques</h4>
+<ul>
+    <li><strong>Sensibilités Globales</strong> : Visualiser quelle contrainte domine à quelle distance</li>
+    <li><strong>Distance Critique (d₀)</strong> : Trouver le point de bascule "optimisation km" ↔ "respect date"</li>
+    <li><strong>Charge Critique (c₀)</strong> : Déterminer la surcharge tolérée pour tenir la date</li>
+    <li><strong>Fonction d'Équivalence</strong> : Voir l'arbitrage distance ↔ charge selon la distance</li>
+</ul>
+
+<h4>2. Calculateurs d'Équivalences</h4>
+<ul>
+    <li><strong>Distance ↔ Date</strong> : "1 jour de retard ≡ X km supplémentaires"</li>
+    <li><strong>Date ↔ Charge</strong> : "1 jour de retard ≡ X heures de surcharge"</li>
+    <li><strong>Distance ↔ Charge</strong> : "1 heure de charge ≡ X km" (variable selon la distance)</li>
+</ul>
+
+<h3>Valeur Ajoutée</h3>
+
+<table>
+    <tr>
+        <th>Pour qui</th>
+        <th>Bénéfices</th>
+    </tr>
+    <tr>
+        <td><strong>Les décideurs</strong></td>
+        <td>
+            • Comprendre concrètement les arbitrages du système<br>
+            • Calibrer les poids selon les priorités business<br>
+            • Simuler l'impact de différents scénarios
+        </td>
+    </tr>
+    <tr>
+        <td><strong>Les opérationnels</strong></td>
+        <td>
+            • Valider que le comportement observé correspond aux réglages<br>
+            • Ajuster finement selon les retours terrain
+        </td>
+    </tr>
+</table>
+
+<div class="page-break"></div>
+
+<h2>💡 Stratégie de Calibration Recommandée</h2>
+
+<h3>Phase 1 : Audit de l'Existant (Semaine 1-2)</h3>
+
+<div class="info-box">
+    <p><strong>Actions :</strong></p>
+    <ol>
+        <li>Extraire les paramétrages actuels des 4 stratégies</li>
+        <li>Analyser les plannings produits sur les 3 derniers mois :
+            <ul>
+                <li>Taux de respect des dates par stratégie</li>
+                <li>Coûts kilométriques moyens par intervention</li>
+                <li>Charges journalières moyennes et pics</li>
+            </ul>
+        </li>
+        <li>Identifier les insatisfactions :
+            <ul>
+                <li>Retours clients (retards)</li>
+                <li>Retours techniciens (surcharges)</li>
+                <li>Retours contrôleurs de gestion (coûts)</li>
+            </ul>
+        </li>
+    </ol>
+
+    <p><strong>Livrables :</strong></p>
+    <ul>
+        <li>Tableau de bord des performances actuelles par stratégie</li>
+        <li>Liste des points de friction identifiés</li>
+    </ul>
+</div>
+
+<h3>Phase 2 : Définition des Objectifs Business (Semaine 3)</h3>
+
+<div class="info-box">
+    <p><strong>Méthode :</strong> Atelier avec les parties prenantes (Commerce, Ops, RH, Finance)</p>
+
+    <p><strong>Questions clés à trancher :</strong></p>
+    <ol>
+        <li><strong>Priorité principale</strong> : Réactivité client ou optimisation coûts ?</li>
+        <li><strong>Seuils acceptables</strong> :
+            <ul>
+                <li>Retard max toléré : X jours</li>
+                <li>Surcharge max tolérée : Y heures/jour</li>
+                <li>Surcoût km max toléré : Z% vs optimal</li>
+            </ul>
+        </li>
+        <li><strong>Spécificités par type d'intervention</strong> :
+            <ul>
+                <li>Interventions urgentes : comportement souhaité ?</li>
+                <li>Interventions programmées : comportement souhaité ?</li>
+                <li>Interventions VIP : traitement spécifique ?</li>
+            </ul>
+        </li>
+    </ol>
+
+    <p><strong>Livrables :</strong></p>
+    <ul>
+        <li>Matrice de priorités par stratégie</li>
+        <li>Seuils métier validés</li>
+    </ul>
+</div>
+
+<h3>Phase 3 : Calibration et Simulation (Semaine 4-5)</h3>
+
+<div class="info-box">
+    <p><strong>Actions :</strong></p>
+    <ol>
+        <li><strong>Utiliser l'outil HTML</strong> pour définir les poids cibles :
+            <ul>
+                <li>Simuler différents scénarios de pondération</li>
+                <li>Identifier les valeurs de d₀ et c₀ cohérentes avec les objectifs</li>
+                <li>Valider les arbitrages avec les décideurs</li>
+            </ul>
+        </li>
+        <li><strong>Configurer les stratégies</strong> :
+            <ul>
+                <li>Mettre à jour les poids (α, β, γ, δ) par stratégie</li>
+                <li>Ajuster les fenêtres de recherche (search_day_start/end)</li>
+                <li>Configurer apply_toleration selon les seuils validés</li>
+                <li>Remplir la table strategy_interventiontype_assignment pour les cas spécifiques</li>
+            </ul>
+        </li>
+        <li><strong>Simuler sur données historiques</strong> :
+            <ul>
+                <li>Rejouer les plannings des 3 derniers mois avec les nouveaux paramètres</li>
+                <li>Comparer les métriques (coûts, dates, charges)</li>
+                <li>Ajuster si nécessaire</li>
+            </ul>
+        </li>
+    </ol>
+
+    <p><strong>Livrables :</strong></p>
+    <ul>
+        <li>Nouvelle configuration des 4 stratégies</li>
+        <li>Rapport de simulation : gains estimés vs baseline</li>
+    </ul>
+</div>
+
+<h3>Phase 4 : Déploiement Progressif (Semaine 6-8)</h3>
+
+<div class="info-box">
+    <p><strong>Approche : A/B Testing</strong></p>
+
+    <ol>
+        <li><strong>Pilote sur une stratégie</strong> (ex: AUTOPLANIF) :
+            <ul>
+                <li>Déployer les nouveaux poids sur 20% du trafic</li>
+                <li>Monitorer pendant 2 semaines</li>
+                <li>Comparer A vs B</li>
+            </ul>
+        </li>
+        <li><strong>Généralisation</strong> si KPIs positifs :
+            <ul>
+                <li>Déployer sur 100% de AUTOPLANIF</li>
+                <li>Étendre aux autres stratégies une par une</li>
+            </ul>
+        </li>
+        <li><strong>Monitoring continu</strong> :
+            <ul>
+                <li>Dashboard quotidien des KPIs par stratégie</li>
+                <li>Alertes si dégradation d'un indicateur</li>
+                <li>Ajustements en temps réel si nécessaire</li>
+            </ul>
+        </li>
+    </ol>
+
+    <p><strong>Livrables :</strong></p>
+    <ul>
+        <li>Rapport d'impact post-déploiement</li>
+        <li>Recommandations d'ajustements</li>
+    </ul>
+</div>
+
+<div class="page-break"></div>
+
+<h2>📊 Tableau de Synthèse des Stratégies</h2>
+
+<table>
+    <tr>
+        <th>Stratégie</th>
+        <th>Usage Principal</th>
+        <th>Priorité Business</th>
+        <th>Poids Recommandés<br>(α/β/γ/δ)</th>
+        <th>Fenêtre</th>
+        <th>Propositions</th>
+    </tr>
+    <tr>
+        <td><strong>DIGITAL<br>(TT Planif)</strong></td>
+        <td>Tickets techniques urgents</td>
+        <td>Réactivité client</td>
+        <td>80/80/300/15</td>
+        <td>J à J+3</td>
+        <td>3-5</td>
+    </tr>
+    <tr>
+        <td><strong>SHOP<br>(PRDV)</strong></td>
+        <td>Prises de RDV client</td>
+        <td>Équilibre date/coûts</td>
+        <td>100/100/200/20</td>
+        <td>J à J+15</td>
+        <td>5-7</td>
+    </tr>
+    <tr>
+        <td><strong>DIGIT</strong></td>
+        <td>Interventions digitalisées</td>
+        <td>À définir</td>
+        <td>À calibrer</td>
+        <td>À définir</td>
+        <td>À définir</td>
+    </tr>
+    <tr>
+        <td><strong>AUTOPLANIF</strong></td>
+        <td>Planification batch anticipée</td>
+        <td>Optimisation coûts</td>
+        <td>150/150/100/25</td>
+        <td>J+5 à J+30</td>
+        <td>1-3</td>
+    </tr>
+</table>
+
+<p><strong>Légende des poids :</strong></p>
+<ul>
+    <li><strong>α/β</strong> : Distance (plus c'est élevé, plus on optimise les km)</li>
+    <li><strong>γ</strong> : Date (plus c'est élevé, plus on tient les dates)</li>
+    <li><strong>δ</strong> : Charge (plus c'est élevé, plus on protège les techniciens)</li>
+</ul>
+
+<div class="page-break"></div>
+
+<h2>🎯 Recommandations Stratégiques</h2>
+
+<h3>1. Prioriser la calibration de SHOP (PRDV)</h3>
+
+<div class="highlight-box">
+    <p><strong>Raison :</strong> Impact direct sur la satisfaction client (engagement de date) et coûts opérationnels</p>
+
+    <p><strong>Quick Wins possibles :</strong></p>
+    <ul>
+        <li>Ajuster d₀ pour optimiser les interventions urbaines (< 5 km) sans compromettre les dates</li>
+        <li>Augmenter légèrement δ pour limiter les surcharges techniciens (bien-être)</li>
+    </ul>
+</div>
+
+<h3>2. Spécialiser AUTOPLANIF pour l'optimisation batch</h3>
+
+<div class="highlight-box">
+    <p><strong>Raison :</strong> Cette stratégie a plus de degrés de liberté (planification anticipée)</p>
+
+    <p><strong>Actions :</strong></p>
+    <ul>
+        <li>Augmenter α/β pour maximiser l'économie de km</li>
+        <li>Décaler search_day_start à J+5 pour laisser le temps d'optimiser</li>
+        <li>Réduire nbr_proposition_to_return à 1-2 (on fait confiance à l'optimisation)</li>
+    </ul>
+</div>
+
+<h3>3. Créer des profils d'intervention dans la table de surcharge</h3>
+
+<div class="highlight-box">
+    <p><strong>Raison :</strong> Tous les types d'intervention n'ont pas les mêmes contraintes</p>
+
+    <p><strong>Profils suggérés :</strong></p>
+    <table>
+        <tr>
+            <th>Profil</th>
+            <th>Paramétrage</th>
+            <th>Objectif</th>
+        </tr>
+        <tr>
+            <td><strong>URGENCE</strong></td>
+            <td>search_day_end=1, γ=500</td>
+            <td>Date absolue, traitement immédiat</td>
+        </tr>
+        <tr>
+            <td><strong>STANDARD</strong></td>
+            <td>Paramètres stratégie</td>
+            <td>Comportement par défaut</td>
+        </tr>
+        <tr>
+            <td><strong>FLEXIBLE</strong></td>
+            <td>search_day_end=30, α/β augmentés</td>
+            <td>Optimisation maximale des trajets</td>
+        </tr>
+        <tr>
+            <td><strong>VIP</strong></td>
+            <td>nbr_proposition_to_return=10, c₀ réduit</td>
+            <td>Plus de choix, confort technicien</td>
+        </tr>
+    </table>
+</div>
+
+<h3>4. Mettre en place un monitoring des KPIs</h3>
+
+<div class="highlight-box">
+    <p><strong>Raison :</strong> Piloter l'impact des changements de paramétrage</p>
+
+    <p><strong>KPIs à suivre par stratégie :</strong></p>
+    <table>
+        <tr>
+            <th>Catégorie</th>
+            <th>Indicateurs</th>
+        </tr>
+        <tr>
+            <td><strong>Coûts</strong></td>
+            <td>Km moyen/intervention, Km total/jour</td>
+        </tr>
+        <tr>
+            <td><strong>Qualité</strong></td>
+            <td>Taux de respect date J, Taux de respect date J+1, Retard moyen</td>
+        </tr>
+        <tr>
+            <td><strong>Charge</strong></td>
+            <td>Heures moy/technicien, Écart-type charge, % jours > 8h</td>
+        </tr>
+    </table>
+
+    <p><strong>Fréquence :</strong> Dashboard hebdomadaire + alertes automatiques</p>
+</div>
+
+<div class="page-break"></div>
+
+<h2>🚦 Plan d'Action Proposé</h2>
+
+<h3>Court Terme (Mois 1)</h3>
+<ul class="checklist">
+    <li>Atelier de cadrage avec les parties prenantes (semaine 1)</li>
+    <li>Audit des paramétrages et performances actuelles (semaine 2)</li>
+    <li>Calibration des stratégies via l'outil HTML (semaine 3)</li>
+    <li>Validation des nouveaux paramètres avec les décideurs (semaine 4)</li>
+</ul>
+
+<h3>Moyen Terme (Mois 2-3)</h3>
+<ul class="checklist">
+    <li>Pilote AUTOPLANIF avec nouveaux paramètres (A/B test)</li>
+    <li>Déploiement SHOP (PRDV) si pilote concluant</li>
+    <li>Configuration de la table strategy_interventiontype_assignment</li>
+    <li>Mise en place du dashboard de monitoring</li>
+</ul>
+
+<h3>Long Terme (Mois 4-6)</h3>
+<ul class="checklist">
+    <li>Généralisation à toutes les stratégies</li>
+    <li>Optimisation continue basée sur les KPIs</li>
+    <li>Documentation des bonnes pratiques de calibration</li>
+    <li>Formation des équipes au pilotage des paramètres</li>
+</ul>
+
+<div class="page-break"></div>
+
+<h2>📌 Points de Vigilance</h2>
+
+<div class="warning-box">
+    <h3>1. Équilibre des Objectifs</h3>
+    <p>⚠️ Augmenter γ (priorité date) augmente mécaniquement les coûts km</p>
+    <p><strong>→ Il faut assumer l'arbitrage et le quantifier</strong></p>
+</div>
+
+<div class="warning-box">
+    <h3>2. Effet de Bord sur les Techniciens</h3>
+    <p>⚠️ Optimiser les km sans surveiller δ peut créer des surcharges</p>
+    <p><strong>→ Monitorer systématiquement les charges journalières</strong></p>
+</div>
+
+<div class="warning-box">
+    <h3>3. Gestion des Exceptions</h3>
+    <p>⚠️ Certaines interventions nécessitent des règles spécifiques</p>
+    <p><strong>→ Utiliser strategy_interventiontype_assignment pour les cas particuliers</strong></p>
+</div>
+
+<div class="warning-box">
+    <h3>4. Change Management</h3>
+    <p>⚠️ Les utilisateurs sont habitués au comportement actuel</p>
+    <p><strong>→ Communiquer sur les changements et impliquer les opérationnels</strong></p>
+</div>
+
+<div class="page-break"></div>
+
+<h2>🎬 Conclusion</h2>
+
+<h3>Les Atouts de Notre Approche</h3>
+
+<ol>
+    <li><strong>Flexibilité</strong> : 5 leviers de paramétrage pour s'adapter à chaque contexte</li>
+    <li><strong>Traçabilité</strong> : Chaque décision de l'optimiseur est explicable (pondération)</li>
+    <li><strong>Outillage</strong> : Dashboard HTML pour comprendre et calibrer</li>
+    <li><strong>Granularité</strong> : Paramétrage par stratégie + par type d'intervention</li>
+</ol>
+
+<h3>L'Opportunité</h3>
+
+<p>En calibrant finement nos 4 stratégies, nous pouvons :</p>
+<ul>
+    <li><strong>Réduire les coûts</strong> kilométriques de 5-10% (estimation)</li>
+    <li><strong>Améliorer la satisfaction client</strong> en tenant mieux les dates</li>
+    <li><strong>Protéger nos ressources</strong> en évitant les surcharges systématiques</li>
+</ul>
+
+<h3>La Prochaine Étape</h3>
+
+<div class="highlight-box">
+    <p><strong>Décision attendue :</strong></p>
+    <ul class="checklist">
+        <li>Valider le lancement de la phase d'audit et calibration</li>
+        <li>Désigner un sponsor projet (direction)</li>
+        <li>Constituer l'équipe de pilotage (Commerce, Ops, RH, IT)</li>
+        <li>Planifier l'atelier de cadrage (semaine prochaine)</li>
+    </ul>
+</div>
+
+<div class="page-break"></div>
+
+<h2>📎 Annexes</h2>
+
+<h3>A. Glossaire</h3>
+
+<table>
+    <tr>
+        <th>Terme</th>
+        <th>Définition</th>
+    </tr>
+    <tr>
+        <td><strong>α (alpha)</strong></td>
+        <td>Poids de la contrainte "distance par intervention"</td>
+    </tr>
+    <tr>
+        <td><strong>β (beta)</strong></td>
+        <td>Poids de la contrainte "distance cumulée"</td>
+    </tr>
+    <tr>
+        <td><strong>γ (gamma)</strong></td>
+        <td>Poids de la contrainte "date de slot"</td>
+    </tr>
+    <tr>
+        <td><strong>δ (delta)</strong></td>
+        <td>Poids de la contrainte "charge journalière"</td>
+    </tr>
+    <tr>
+        <td><strong>d₀</strong></td>
+        <td>Distance critique : seuil où le système bascule de "optimise distance" à "tient la date"</td>
+    </tr>
+    <tr>
+        <td><strong>c₀</strong></td>
+        <td>Charge critique : heures de surcharge tolérées pour tenir la date</td>
+    </tr>
+    <tr>
+        <td><strong>Soft constraint</strong></td>
+        <td>Contrainte que le système peut violer (avec pénalité)</td>
+    </tr>
+    <tr>
+        <td><strong>Hard constraint</strong></td>
+        <td>Contrainte que le système ne peut jamais violer</td>
+    </tr>
+    <tr>
+        <td><strong>TimeFold</strong></td>
+        <td>Moteur d'optimisation utilisé pour la planification</td>
+    </tr>
+</table>
+
+<h3>B. Questions / Réponses Anticipées</h3>
+
+<table>
+    <tr>
+        <th style="width: 40%;">Question</th>
+        <th>Réponse</th>
+    </tr>
+    <tr>
+        <td><strong>Q : Peut-on avoir une stratégie qui optimise à la fois les km ET les dates ?</strong></td>
+        <td>R : Oui, c'est l'objet de la pondération. En ajustant α et γ, on définit l'équilibre souhaité. Par exemple, α=100 et γ=200 signifie "la date compte 2× plus que les km".</td>
+    </tr>
+    <tr>
+        <td><strong>Q : Comment savoir si nos paramètres sont les bons ?</strong></td>
+        <td>R : En comparant les KPIs produits (coûts, respect dates, charges) avec nos objectifs business. L'outil HTML aide à simuler différents scénarios avant de déployer.</td>
+    </tr>
+    <tr>
+        <td><strong>Q : Peut-on changer les paramètres en cours de journée ?</strong></td>
+        <td>R : Techniquement oui, mais déconseillé (cohérence). Mieux vaut ajuster à la semaine après analyse des KPIs.</td>
+    </tr>
+    <tr>
+        <td><strong>Q : Quid des interventions très urgentes (ex: panne réseau) ?</strong></td>
+        <td>R : On les traite via la table strategy_interventiontype_assignment en leur donnant une fenêtre J à J+1 et un poids γ très élevé (ex: 500). Le système les planifiera en priorité absolue.</td>
+    </tr>
+</table>
+
+<hr>
+
+<div class="footer">
+    <p><strong>Date de présentation :</strong> [À compléter]</p>
+    <p><strong>Présenté par :</strong> [Votre nom]</p>
+    <p><strong>Contact :</strong> [Votre email]</p>
+    <br>
+    <p><em>Document confidentiel - Usage interne uniquement</em></p>
+</div>
+
+</body>
+</html>
