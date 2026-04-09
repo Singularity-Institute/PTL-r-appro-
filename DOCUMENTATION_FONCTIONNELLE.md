@@ -591,3 +591,79 @@ sequenceDiagram
 | Horizon fixe | La projection est limitée à SDP jours ; les interventions au-delà ne sont pas anticipées |
 | Dépendance aux données externes | La qualité du calcul dépend entièrement de l'exactitude des stocks fournis par op-device et des interventions planifiées |
 | Batch destructif | Le batch supprime TOUTES les APP en attente avant de les recréer ; toute APP modifiée manuellement entre deux exécutions sera perdue |
+
+---
+
+## Incohérences et anomalies détectées
+
+> Anomalies entre les règles fonctionnelles documentées et le comportement réel du code ou du système.
+
+---
+
+### IC-FONC-01 — Le seuil de score 160 n'est pas paramétrable
+
+**Règle documentée :** Un article est commandé si son score total (UrQ + UrT + ImP) ≥ 160.
+
+**Code réel :** La valeur `160` est codée en dur dans la logique de scoring. Elle n'est pas exposée comme paramètre dans la table `supply_parameter` et ne peut pas être ajustée sans déploiement.
+
+**Impact :** Impossible d'adapter le seuil de déclenchement selon le contexte métier (saisonnalité, stratégie commerciale) sans modifier et redéployer le code.
+
+---
+
+### IC-FONC-02 — Les statuts de demande diffèrent entre le domaine supply-core et les routes d'orchestration
+
+**Règle documentée :** Les demandes de réapprovisionnement suivent un cycle de vie défini (À Faire → Validée → etc.).
+
+**Code réel :** supply-core crée des demandes en statut `AV` (À Valider), mais les routes Camel d'orchestration filtrent sur le statut `F` (À Faire). Une demande créée par supply-core ne sera jamais traitée par les routes d'orchestration puisque son statut (`AV`) ne correspond pas au filtre attendu (`F`).
+
+**Impact :** Blocage systématique du flux de réapprovisionnement automatique — les demandes générées par le calcul ne déclenchent jamais les routes d'expédition.
+
+---
+
+### IC-FONC-03 — Le facteur IMP individuel par technicien n'est pas décrit dans les règles métier
+
+**Règle documentée :** Le paramètre `IMP` global est configurable.
+
+**Code réel :** Un facteur `IMP` individuel peut surcharger le facteur global pour un technicien spécifique via la table de paramètres. Cette surcharge n'est mentionnée dans aucune règle métier documentée (RG-CDS, RG-UDS etc.) et n'a aucun processus de gestion décrit (qui peut le modifier ? avec quelles contraintes ?).
+
+**Impact :** Comportement de scoring opaque — deux techniciens avec les mêmes stocks et interventions peuvent avoir des propositions différentes sans que l'utilisateur comprenne pourquoi.
+
+---
+
+### IC-FONC-04 — Le batch détruit les APP manuelles sans avertissement
+
+**Règle documentée :** Le batch supprime toutes les APP avant de les recréer (mentionné dans les limites).
+
+**Impact non documenté :** Si un logisticien modifie manuellement une APP (ajoute un article, change une quantité) entre deux exécutions du scheduler, sa modification est perdue sans aucun avertissement. Aucun mécanisme de verrouillage ("APP en cours de modification") ni de notification n'est prévu.
+
+**Impact :** Perte silencieuse de modifications manuelles. Le logisticien peut croire que son ajustement est pris en compte alors qu'il a été écrasé.
+
+---
+
+### IC-FONC-05 — Les interventions passées proches de la limite SDP gonflent artificiellement le score
+
+**Règle documentée :** Seules les interventions dans l'horizon SDP (N prochains jours) sont prises en compte.
+
+**Code réel :** Le filtre temporel applique une fenêtre `[aujourd'hui, aujourd'hui + SDP]`. Les interventions dont la date est **dans le passé récent** mais enregistrées dans le système avec une date future ne sont pas exclues. De plus, si SDP est grand (ex: 30 jours), des interventions déjà réalisées (date passée) mais encore dans la fenêtre sont comptabilisées, gonflant le score inutilement.
+
+**Impact :** Sur-estimation du besoin de réapprovisionnement sur des articles dont les interventions prévues ont déjà eu lieu.
+
+---
+
+### IC-FONC-06 — Absence de gestion des retours d'équipements dans le calcul de besoin
+
+**Règle documentée :** Le calcul tient compte du stock actuel pour chaque technicien.
+
+**Impact non documenté :** Les équipements en cours de retour (statut `R` ou `RE` dans teamtool-logistique) ne sont pas pris en compte dans le stock projeté. Un technicien qui a initié un retour de 3 centrales apparaît comme en ayant encore 3 dans son stock, ce qui sous-estime son besoin réel de réapprovisionnement.
+
+**Impact :** Calcul de besoin inexact pour les techniciens avec des retours en cours. Les APP générées peuvent être insuffisantes.
+
+---
+
+### IC-FONC-07 — Aucune règle métier documentée sur la gestion des erreurs Chronopost en batch
+
+**Règle documentée :** Le batch génère des APP et des bons Chronopost.
+
+**Code réel :** Si la génération Chronopost échoue pour un technicien (service SOAP indisponible, adresse invalide), le comportement n'est pas documenté. Le batch continue-t-il pour les autres techniciens ? La demande est-elle créée sans Chronopost ? L'erreur est-elle notifiée ?
+
+**Impact :** En cas de panne Chronopost partielle pendant le batch nocturne, certains techniciens reçoivent leur APP et d'autres non, sans que la logistique en soit informée.
