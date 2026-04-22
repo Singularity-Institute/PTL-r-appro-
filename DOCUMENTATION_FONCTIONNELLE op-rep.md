@@ -400,7 +400,9 @@ score_URGENT_B = efficacité_occupation + écart_au_stock_minimum
 | Composante | Formule | Logique métier |
 |---|---|---|
 | **Efficacité d'occupation** | `(1 / ratio_occupation) × poids_occupation` | Favorise les articles qui **prennent peu de place** dans la boîte, afin de maximiser le nombre d'articles insérés dans l'espace restant |
-| **Écart au stock minimum** | `((stock_min − quantité_actuelle) / stock_min) × poids_écart` | Favorise les articles dont le stock est **le plus en dessous** du seuil minimum, donc les plus critiques à réapprovisionner |
+| **Écart au stock minimum** | `((stock_min − stock_au_jour_critique) / stock_min) × poids_écart` | Favorise les articles dont le stock projeté est **le plus en dessous** du seuil minimum, donc les plus critiques à réapprovisionner |
+
+> **Définition de `stock_au_jour_critique` :** Il s'agit du stock projeté **au premier jour où le stock passe sous le seuil `stock_min`** dans l'horizon SDP. Si le stock ne passe jamais sous le minimum, la valeur utilisée est le **stock projeté au dernier jour de l'horizon** (J+SDP). Ce n'est pas le stock actuel du technicien (J+0).
 
 Les deux **poids** (`poids_occupation` et `poids_écart`) sont configurables et permettent d'ajuster l'équilibre entre remplissage optimal des boîtes et urgence de réapprovisionnement.
 
@@ -430,30 +432,32 @@ Si de l'espace reste après le placement des URGENT_B, les articles **SAFE** (sc
 | Étape | Règle | Formule |
 |---|---|---|
 | 1 | Calculer le stock cible | `stock_cible = (stock_min + stock_max) / 2` |
-| 2 | Exclure les articles déjà au niveau cible | Retenir uniquement si `quantité_actuelle < stock_cible` |
-| 3 | Calculer la quantité à placer | `quantité = stock_cible − quantité_actuelle` |
+| 2 | Exclure les articles déjà au niveau cible | Retenir uniquement si `stock_au_jour_critique < stock_cible` |
+| 3 | Calculer la quantité à placer | `quantité = stock_cible − stock_au_jour_critique` |
+
+> **Définition de `stock_au_jour_critique` :** Même définition que pour les articles URGENT_B — stock projeté **au premier jour de rupture** (premier jour où stock < stock_min), ou stock projeté **au dernier jour de l'horizon** (J+SDP) si aucune rupture n'est prévue.
 
 **Score de tri :**
 
 ```
-score_SAFE = (quantité_actuelle − stock_cible) / stock_cible
+score_SAFE = (stock_au_jour_critique − stock_cible) / stock_cible
 ```
 
 | Valeur du score | Signification | Priorité de placement |
 |---|---|---|
-| Très négatif (ex : −0,8) | Stock très en dessous de la cible | **Haute** — placé en premier |
-| Légèrement négatif (ex : −0,1) | Stock proche de la cible | **Basse** — placé en dernier |
-| Zéro ou positif | Stock au niveau ou au-dessus de la cible | **Exclu** par le pré-filtre |
+| Très négatif (ex : −0,8) | Stock projeté très en dessous de la cible | **Haute** — placé en premier |
+| Légèrement négatif (ex : −0,1) | Stock projeté proche de la cible | **Basse** — placé en dernier |
+| Zéro ou positif | Stock projeté au niveau ou au-dessus de la cible | **Exclu** par le pré-filtre |
 
 ```mermaid
 flowchart TD
     START["Articles SAFE\n(score criticité < 160)"]
 
-    START --> FILTER["Pré-filtre :\nstock_cible = (stock_min + stock_max) / 2\nRetenir si quantité_actuelle < stock_cible"]
+    START --> FILTER["Pré-filtre :\nstock_cible = (stock_min + stock_max) / 2\nRetenir si stock_au_jour_critique < stock_cible"]
 
-    FILTER --> CALC_QTY["Quantité à placer =\nstock_cible − quantité_actuelle"]
+    FILTER --> CALC_QTY["Quantité à placer =\nstock_cible − stock_au_jour_critique"]
 
-    CALC_QTY --> SCORE["Score = (quantité_actuelle − stock_cible) / stock_cible\n(plus négatif = plus prioritaire)"]
+    CALC_QTY --> SCORE["Score = (stock_au_jour_critique − stock_cible) / stock_cible\n(plus négatif = plus prioritaire)"]
 
     SCORE --> SORT["Trier par score croissant\n(plus grand écart en premier)"]
 
@@ -464,7 +468,7 @@ flowchart TD
     FIND -->|"Non"| STOP["Arrêt — plus d'espace\ndans aucune boîte"]
 ```
 
-**Exemple :** Un technicien a un stock de PIR à 10 unités (cible : 22). Score = (10 − 22) / 22 = −0,55. Un autre article TAG est à 20 unités (cible : 19) → exclu car déjà au-dessus de la cible. Le PIR sera placé si de l'espace reste dans les boîtes.
+**Exemple :** Un technicien a un stock projeté de PIR à 10 unités au jour critique (cible : 22). Score = (10 − 22) / 22 = −0,55. Un autre article TAG a un stock projeté de 20 unités au dernier jour (cible : 19) → exclu car au-dessus de la cible. Le PIR sera placé si de l'espace reste dans les boîtes.
 
 ---
 
