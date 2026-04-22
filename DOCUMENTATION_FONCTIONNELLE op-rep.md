@@ -389,6 +389,24 @@ flowchart TD
 | **RG-BOX-05** | Les articles URGENT_B et SAFE ne génèrent jamais de boîte supplémentaire — ils complètent uniquement l'espace restant |
 | **RG-BOX-06** | Si aucune boîte n'a assez d'espace pour un article donné, celui-ci est abandonné (placement partiel autorisé) |
 
+#### Quantité à commander (commune à tous les niveaux de criticité)
+
+La quantité à commander par article est calculée de manière identique pour tous les niveaux de criticité (CRITICAL_A/B, URGENT_A/B). Elle vise à ramener le stock au **milieu de la fourchette min/max** :
+
+```
+stock_cible = ARRONDI_SUP((stock_min + stock_max) / 2)
+quantité_à_commander = stock_cible − stock_projeté_à_J+SDP
+```
+
+| Variable | Définition |
+|---|---|
+| **stock_cible** | Arrondi supérieur de la moyenne des seuils min et max, définis par couple (article, offre distributeur) |
+| **stock_projeté_à_J+SDP** | Stock simulé au **dernier jour de l'horizon** de projection (par défaut J+15) — tient compte de toutes les consommations prévisionnelles sur la période |
+
+Si `stock_projeté_à_J+SDP ≥ stock_cible`, la quantité à commander est 0 et l'article n'est pas inclus dans la demande.
+
+> **Important :** Le stock cible et la quantité à commander sont les mêmes quelle que soit la criticité. Ce qui différencie les niveaux de criticité, c'est **l'ordre de placement dans les boîtes** et le fait que les articles prioritaires (score ≥ 210) **déterminent le nombre de boîtes**, alors que les URGENT_B et SAFE ne font que **compléter l'espace restant**.
+
 #### Critères de sélection des articles URGENT_B pour compléter les boîtes
 
 Lorsque les articles prioritaires (CRITICAL_A, CRITICAL_B, URGENT_A) ont été placés, l'espace restant dans les boîtes est d'abord proposé aux articles **URGENT_B**. Ceux-ci sont triés par un **score composite** qui détermine l'ordre de placement :
@@ -404,13 +422,17 @@ score_URGENT_B = efficacité_occupation + écart_au_stock_minimum
 
 > **Définition de `stock_au_jour_critique` :** Il s'agit du stock projeté **au premier jour où le stock passe sous le seuil `stock_min`** dans l'horizon SDP. Si le stock ne passe jamais sous le minimum, la valeur utilisée est le **stock projeté au dernier jour de l'horizon** (J+SDP). Ce n'est pas le stock actuel du technicien (J+0).
 
+> **Distinction quantité à commander vs score de tri :** La **quantité à commander** (nombre d'unités à placer dans les boîtes) est calculée à partir du `stock_projeté_à_J+SDP` (voir section précédente). Le **score de tri** (qui détermine l'ordre de priorité entre articles URGENT_B) utilise le `stock_au_jour_critique`. Ces deux valeurs peuvent différer : un article peut avoir un stock bas au jour critique (score de tri élevé) mais un stock remonté en fin de période (quantité à commander faible).
+
 Les deux **poids** (`poids_occupation` et `poids_écart`) sont configurables et permettent d'ajuster l'équilibre entre remplissage optimal des boîtes et urgence de réapprovisionnement.
 
 ```mermaid
 flowchart TD
     START["Articles URGENT_B\n(score criticité ≥ 160 et < 210)"]
 
-    START --> SCORE["Calculer le score composite :\nscore = efficacité_occupation + écart_stock_min"]
+    START --> QTY["Quantité à placer par article :\nstock_cible − stock_projeté_à_J+SDP\n(identique à tous les niveaux)"]
+
+    QTY --> SCORE["Calculer le score de tri :\nscore = efficacité_occupation + écart_stock_min\n(basé sur stock_au_jour_critique)"]
 
     SCORE --> SORT["Trier par score décroissant\n(meilleur candidat en premier)"]
 
@@ -421,7 +443,11 @@ flowchart TD
     FIND -->|"Non"| STOP["Arrêt — article abandonné\n(placement partiel possible)"]
 ```
 
-**Exemple :** Entre un article PIR (ratio 0,010 ; stock à 50 % du min) et un article CAE (ratio 0,125 ; stock à 80 % du min), le PIR sera placé en priorité car il est plus petit et plus en dessous de son seuil.
+**Exemple :** Un technicien a deux articles URGENT_B à placer :
+- PIR : ratio 0,010 — stock au jour critique = 8 (stock_min = 17) — stock à J+SDP = 12 → quantité à commander = ARRONDI_SUP((17+28)/2) − 12 = 23 − 12 = 11 unités
+- CAE : ratio 0,125 — stock au jour critique = 2 (stock_min = 2) — stock à J+SDP = 1 → quantité à commander = ARRONDI_SUP((2+4)/2) − 1 = 3 − 1 = 2 unités
+
+Score de tri PIR = (1/0,010) × poids + ((17−8)/17) × poids → élevé (petit, très en dessous du min). PIR est placé en premier.
 
 #### Critères de sélection des articles SAFE pour compléter les boîtes
 
@@ -431,11 +457,13 @@ Si de l'espace reste après le placement des URGENT_B, les articles **SAFE** (sc
 
 | Étape | Règle | Formule |
 |---|---|---|
-| 1 | Calculer le stock cible | `stock_cible = (stock_min + stock_max) / 2` |
+| 1 | Calculer le stock cible | `stock_cible = ARRONDI_SUP((stock_min + stock_max) / 2)` |
 | 2 | Exclure les articles déjà au niveau cible | Retenir uniquement si `stock_au_jour_critique < stock_cible` |
 | 3 | Calculer la quantité à placer | `quantité = stock_cible − stock_au_jour_critique` |
 
 > **Définition de `stock_au_jour_critique` :** Même définition que pour les articles URGENT_B — stock projeté **au premier jour de rupture** (premier jour où stock < stock_min), ou stock projeté **au dernier jour de l'horizon** (J+SDP) si aucune rupture n'est prévue.
+
+> **Note :** Pour les articles SAFE, le stock ne passe généralement jamais sous le minimum (c'est ce qui les rend SAFE). Dans la majorité des cas, le `stock_au_jour_critique` correspond donc au **stock projeté au dernier jour de l'horizon** (J+SDP).
 
 **Score de tri :**
 
@@ -453,7 +481,7 @@ score_SAFE = (stock_au_jour_critique − stock_cible) / stock_cible
 flowchart TD
     START["Articles SAFE\n(score criticité < 160)"]
 
-    START --> FILTER["Pré-filtre :\nstock_cible = (stock_min + stock_max) / 2\nRetenir si stock_au_jour_critique < stock_cible"]
+    START --> FILTER["Pré-filtre :\nstock_cible = ARRONDI_SUP((stock_min + stock_max) / 2)\nRetenir si stock_au_jour_critique < stock_cible"]
 
     FILTER --> CALC_QTY["Quantité à placer =\nstock_cible − stock_au_jour_critique"]
 
@@ -468,7 +496,7 @@ flowchart TD
     FIND -->|"Non"| STOP["Arrêt — plus d'espace\ndans aucune boîte"]
 ```
 
-**Exemple :** Un technicien a un stock projeté de PIR à 10 unités au jour critique (cible : 22). Score = (10 − 22) / 22 = −0,55. Un autre article TAG a un stock projeté de 20 unités au dernier jour (cible : 19) → exclu car au-dessus de la cible. Le PIR sera placé si de l'espace reste dans les boîtes.
+**Exemple :** Un technicien a un article PIR SAFE avec un stock projeté de 18 unités à J+SDP (stock_min = 17, stock_max = 28, cible = 23). Score = (18 − 23) / 23 = −0,22. Un autre article TAG a un stock projeté de 24 unités à J+SDP (cible = 19) → exclu car au-dessus de la cible. Le PIR sera placé si de l'espace reste dans les boîtes, avec une quantité de 23 − 18 = 5 unités.
 
 ---
 
