@@ -382,10 +382,89 @@ flowchart TD
 
 | Règle | Description |
 |-------|-------------|
-| **RG-BOX-01** | Le nombre de boîtes est calculé par arrondi supérieur du volume total occupé |
+| **RG-BOX-01** | Le nombre de boîtes est calculé par arrondi supérieur du volume total occupé par les articles prioritaires uniquement |
 | **RG-BOX-02** | Les articles prioritaires (score ≥ 210) sont toujours placés en premier |
 | **RG-BOX-03** | La distribution en boîtes se fait en round-robin pour équilibrer le chargement |
 | **RG-BOX-04** | Les articles SAFE peuvent ne pas être inclus si les boîtes sont pleines |
+| **RG-BOX-05** | Les articles URGENT_B et SAFE ne génèrent jamais de boîte supplémentaire — ils complètent uniquement l'espace restant |
+| **RG-BOX-06** | Si aucune boîte n'a assez d'espace pour un article donné, celui-ci est abandonné (placement partiel autorisé) |
+
+#### Critères de sélection des articles URGENT_B pour compléter les boîtes
+
+Lorsque les articles prioritaires (CRITICAL_A, CRITICAL_B, URGENT_A) ont été placés, l'espace restant dans les boîtes est d'abord proposé aux articles **URGENT_B**. Ceux-ci sont triés par un **score composite** qui détermine l'ordre de placement :
+
+```
+score_URGENT_B = efficacité_occupation + écart_au_stock_minimum
+```
+
+| Composante | Formule | Logique métier |
+|---|---|---|
+| **Efficacité d'occupation** | `(1 / ratio_occupation) × poids_occupation` | Favorise les articles qui **prennent peu de place** dans la boîte, afin de maximiser le nombre d'articles insérés dans l'espace restant |
+| **Écart au stock minimum** | `((stock_min − quantité_actuelle) / stock_min) × poids_écart` | Favorise les articles dont le stock est **le plus en dessous** du seuil minimum, donc les plus critiques à réapprovisionner |
+
+Les deux **poids** (`poids_occupation` et `poids_écart`) sont configurables et permettent d'ajuster l'équilibre entre remplissage optimal des boîtes et urgence de réapprovisionnement.
+
+```mermaid
+flowchart TD
+    START["Articles URGENT_B\n(score criticité ≥ 160 et < 210)"]
+
+    START --> SCORE["Calculer le score composite :\nscore = efficacité_occupation + écart_stock_min"]
+
+    SCORE --> SORT["Trier par score décroissant\n(meilleur candidat en premier)"]
+
+    SORT --> LOOP["Pour chaque article (par unité)"]
+    LOOP --> FIND{"Trouver une boîte\navec espace restant\n≥ ratio_occupation ?"}
+    FIND -->|"Oui"| PLACE["Placer l'unité\n(round-robin sur les boîtes)"]
+    PLACE --> LOOP
+    FIND -->|"Non"| STOP["Arrêt — article abandonné\n(placement partiel possible)"]
+```
+
+**Exemple :** Entre un article PIR (ratio 0,010 ; stock à 50 % du min) et un article CAE (ratio 0,125 ; stock à 80 % du min), le PIR sera placé en priorité car il est plus petit et plus en dessous de son seuil.
+
+#### Critères de sélection des articles SAFE pour compléter les boîtes
+
+Si de l'espace reste après le placement des URGENT_B, les articles **SAFE** (score < 160, aucune rupture prévue) sont candidats au remplissage. Ils passent par un **pré-filtre** puis un **score de tri**.
+
+**Pré-filtre — Éligibilité :**
+
+| Étape | Règle | Formule |
+|---|---|---|
+| 1 | Calculer le stock cible | `stock_cible = (stock_min + stock_max) / 2` |
+| 2 | Exclure les articles déjà au niveau cible | Retenir uniquement si `quantité_actuelle < stock_cible` |
+| 3 | Calculer la quantité à placer | `quantité = stock_cible − quantité_actuelle` |
+
+**Score de tri :**
+
+```
+score_SAFE = (quantité_actuelle − stock_cible) / stock_cible
+```
+
+| Valeur du score | Signification | Priorité de placement |
+|---|---|---|
+| Très négatif (ex : −0,8) | Stock très en dessous de la cible | **Haute** — placé en premier |
+| Légèrement négatif (ex : −0,1) | Stock proche de la cible | **Basse** — placé en dernier |
+| Zéro ou positif | Stock au niveau ou au-dessus de la cible | **Exclu** par le pré-filtre |
+
+```mermaid
+flowchart TD
+    START["Articles SAFE\n(score criticité < 160)"]
+
+    START --> FILTER["Pré-filtre :\nstock_cible = (stock_min + stock_max) / 2\nRetenir si quantité_actuelle < stock_cible"]
+
+    FILTER --> CALC_QTY["Quantité à placer =\nstock_cible − quantité_actuelle"]
+
+    CALC_QTY --> SCORE["Score = (quantité_actuelle − stock_cible) / stock_cible\n(plus négatif = plus prioritaire)"]
+
+    SCORE --> SORT["Trier par score croissant\n(plus grand écart en premier)"]
+
+    SORT --> LOOP["Pour chaque article (par unité)"]
+    LOOP --> FIND{"Trouver une boîte\navec espace restant\n≥ ratio_occupation ?"}
+    FIND -->|"Oui"| PLACE["Placer l'unité\n(round-robin sur les boîtes)"]
+    PLACE --> LOOP
+    FIND -->|"Non"| STOP["Arrêt — plus d'espace\ndans aucune boîte"]
+```
+
+**Exemple :** Un technicien a un stock de PIR à 10 unités (cible : 22). Score = (10 − 22) / 22 = −0,55. Un autre article TAG est à 20 unités (cible : 19) → exclu car déjà au-dessus de la cible. Le PIR sera placé si de l'espace reste dans les boîtes.
 
 ---
 
